@@ -1,0 +1,32 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Editor / IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Node (本仓库不含 JS 工程，仅作防御)
+node_modules/
+dist/
+
+# Go (本仓库不含 Go 工程，仅作防御)
+*.exe
+*.test
+*.out
+output/
+
+# 日志与临时文件
+*.log
+*.tmp
+tmp/
+
+# 本地环境配置
+.env
+.env.*
+!.env.example

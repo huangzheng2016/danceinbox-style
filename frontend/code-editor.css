@@ -1,0 +1,77 @@
+.code-editor {
+  position: relative;
+  overflow: hidden;
+  background: var(--input-bg);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  transition:
+    background-color var(--duration-fast) var(--ease-spring),
+    border-color var(--duration-fast) var(--ease-spring),
+    box-shadow var(--duration-fast) var(--ease-spring);
+}
+.code-editor:hover {
+  background: var(--input-bg-hover);
+  border-color: var(--border-strong);
+}
+.code-editor:focus-within {
+  background: var(--input-bg-hover);
+  border-color: var(--accent);
+  box-shadow: var(--focus-ring);
+}
+.code-editor-layer,
+.code-editor-input {
+  margin: 0;
+  padding: 10px 14px;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  line-height: 1.55;
+  tab-size: 2;
+  white-space: pre;
+  color: var(--text-primary);
+}
+.code-editor-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  min-width: 100%;
+  overflow: visible;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  pointer-events: none;
+}
+.code-editor-input {
+  position: relative;
+  display: block;
+  width: 100%;
+  overflow: auto;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  color: transparent;
+  caret-color: var(--text-primary);
+  resize: none;
+}
+.code-editor-input:hover,
+.code-editor-input:focus {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+.code-editor-layer .tok-k {
+  color: var(--accent);
+}
+.code-editor-layer .tok-s {
+  color: var(--success);
+}
+.code-editor-layer .tok-n {
+  color: var(--ctp-peach);
+}
+.code-editor-layer .tok-l {
+  color: var(--warning);
+}
+.code-editor-layer .tok-c {
+  color: var(--text-muted);
+}
