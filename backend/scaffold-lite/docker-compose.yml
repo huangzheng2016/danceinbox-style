@@ -1,0 +1,30 @@
+# Lite profile: SQLite file under ./data/<env>, no database or cache services.
+x-app: &app
+  build:
+    context: .
+    args:
+      VERSION: ${VERSION:-dev}
+  restart: unless-stopped
+
+services:
+  app:
+    <<: *app
+    command: ["-c", "prod"]
+    volumes:
+      - ./config/prod.json:/app/config/prod.json:ro
+      - ./data/prod:/app/data
+
+  app-test:
+    <<: *app
+    command: ["-c", "test"]
+    volumes:
+      - ./config/test.json:/app/config/test.json:ro
+      - ./data/test:/app/data
+
+  caddy:
+    image: caddy:2
+    ports: ["80:80", "443:443", "443:443/udp"]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./data/caddy:/data
+    restart: unless-stopped

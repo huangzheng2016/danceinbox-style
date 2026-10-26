@@ -1,0 +1,55 @@
+# Secrets come from a .env file next to this one on the server (never committed):
+#   MYSQL_ROOT_PASSWORD=...  MYSQL_PASSWORD=...  REDIS_PASSWORD=...
+# config/prod.json and config/test.json must use the same passwords and reach
+# the databases by service name (mysql:3306, redis:6379), not 127.0.0.1.
+x-app: &app
+  build:
+    context: .
+    args:
+      VERSION: ${VERSION:-dev}
+  depends_on: [mysql, redis]
+  restart: unless-stopped
+
+services:
+  app:
+    <<: *app
+    command: ["-c", "prod"]
+    volumes:
+      - ./config/prod.json:/app/config/prod.json:ro
+      - ./data/prod/upload:/app/data/upload
+
+  app-test:
+    <<: *app
+    command: ["-c", "test"]
+    volumes:
+      - ./config/test.json:/app/config/test.json:ro
+      - ./data/test/upload:/app/data/upload
+
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set in .env}
+      MYSQL_DATABASE: MODULE_NAME
+      MYSQL_USER: app
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?set in .env}
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    ports: ["127.0.0.1:3306:3306"]
+    volumes:
+      - ./data/mysql:/var/lib/mysql
+      - ./script/mysql-init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    restart: unless-stopped
+
+  redis:
+    image: redis:7
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:?set in .env}"]
+    ports: ["127.0.0.1:6379:6379"]
+    volumes: ["./data/redis:/data"]
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2
+    ports: ["80:80", "443:443", "443:443/udp"]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./data/caddy:/data
+    restart: unless-stopped

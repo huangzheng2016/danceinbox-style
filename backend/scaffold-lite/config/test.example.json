@@ -1,0 +1,18 @@
+{
+  "server": {
+    "addr": "0.0.0.0:8080"
+  },
+  "db": {
+    "dsn": "data/app.db"
+  },
+  "upload": {
+    "dir": "data/upload",
+    "max_mb": 20
+  },
+  "jwt": {
+    "secret": "replace-with-at-least-32-random-characters",
+    "access_ttl_seconds": 3600,
+    "refresh_ttl_seconds": 2592000,
+    "cookie_secure": true
+  }
+}

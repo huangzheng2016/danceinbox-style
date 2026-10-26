@@ -1,0 +1,11 @@
+/output/
+/data/
+/bin/
+.env
+.cache/
+config/*.json
+!config/*.example.json
+frontend/node_modules/
+frontend/dist/*
+!frontend/dist/.gitkeep
+.DS_Store

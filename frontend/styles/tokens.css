@@ -1,0 +1,150 @@
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url('/fonts/plus-jakarta-sans-latin.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Geist Mono';
+  font-style: normal;
+  font-weight: 400 600;
+  font-display: swap;
+  src: url('/fonts/geist-mono-latin.woff2') format('woff2');
+}
+
+/* Rebranding a project means editing the "brand" block below and nothing else. */
+:root {
+  /* brand */
+  --accent: #00a8cc;
+  --accent-hover: #008fb3;
+  --accent-text: #00799a;
+  --on-accent: #0f1214;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+
+  --accent-soft: rgba(0, 168, 204, 0.1);
+  --accent-ring: rgba(0, 168, 204, 0.25);
+
+  --success: #2f8a1f;
+  --success-soft: rgba(47, 138, 31, 0.12);
+  --warning: #b86e00;
+  --warning-soft: rgba(223, 142, 29, 0.16);
+  --danger: #d20f39;
+  --danger-hover: #b00c30;
+  --danger-soft: rgba(210, 15, 57, 0.1);
+  --on-danger: #ffffff;
+  --info: #0b7fb3;
+  --info-soft: rgba(4, 165, 229, 0.12);
+
+  --text: #1e1e1c;
+  --text-secondary: #52524e;
+  --text-muted: #6b6b66;
+
+  --bg: #f4f4f2;
+  --surface: #fbfbfa;
+  --surface-muted: #efefec;
+  --surface-hover: #e9e9e6;
+  --surface-raised: #ffffff;
+  --border: rgba(30, 30, 28, 0.1);
+  --border-strong: rgba(30, 30, 28, 0.2);
+  --mask: rgba(30, 30, 28, 0.36);
+
+  /* categorical chart series, in order; the first is the brand accent */
+  --chart-1: #00a8cc;
+  --chart-2: #5b6cf0;
+  --chart-3: #e8963a;
+  --chart-4: #3f9f5c;
+  --chart-5: #d4537e;
+  --chart-6: #8b5cd6;
+  --chart-7: #2a9d8f;
+  --chart-8: #a3a3a0;
+
+  --shadow-float: 0 8px 24px rgba(30, 30, 28, 0.12);
+  --shadow-dialog: 0 20px 48px rgba(30, 30, 28, 0.18);
+
+  --font-sans: 'Plus Jakarta Sans', 'PingFang SC', 'Noto Sans SC', 'Microsoft YaHei', system-ui, sans-serif;
+  --font-mono: 'Geist Mono', 'SF Mono', 'JetBrains Mono', Consolas, monospace;
+
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-md: 13px;
+  --text-base: 14px;
+  --text-lg: 16px;
+  --text-xl: 20px;
+  --text-2xl: 28px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+
+  --control-h: 32px;
+  --control-h-sm: 26px;
+  --sidebar-w: 224px;
+  --sidebar-w-collapsed: 64px;
+
+  --ease: cubic-bezier(0.32, 0.72, 0, 1);
+  --dur-fast: 0.15s;
+  --dur: 0.22s;
+
+  --z-sticky: 2;
+  --z-header: 10;
+  --z-popover: 100;
+  --z-dialog: 200;
+  --z-menu: 300;
+  --z-toast: 400;
+
+  color-scheme: light;
+}
+
+:root.dark {
+  --accent: #00d9ff;
+  --accent-hover: #4de4ff;
+  --accent-text: #00d9ff;
+  --on-accent: #0f1214;
+
+  --accent-soft: rgba(0, 217, 255, 0.1);
+  --accent-ring: rgba(0, 217, 255, 0.3);
+
+  --success: #a6da95;
+  --success-soft: rgba(166, 218, 149, 0.14);
+  --warning: #eed49f;
+  --warning-soft: rgba(238, 212, 159, 0.14);
+  --danger: #ed8796;
+  --danger-hover: #f3a5b1;
+  --danger-soft: rgba(237, 135, 150, 0.14);
+  --on-danger: #15171a;
+  --info: #91d7e3;
+  --info-soft: rgba(145, 215, 227, 0.14);
+
+  --text: #e8e8e6;
+  --text-secondary: #b0b0ad;
+  --text-muted: #8f8f8a;
+
+  --bg: #131518;
+  --surface: #1a1d21;
+  --surface-muted: #20242a;
+  --surface-hover: #272c33;
+  --surface-raised: #22262c;
+  --border: rgba(255, 255, 255, 0.09);
+  --border-strong: rgba(255, 255, 255, 0.18);
+  --mask: rgba(0, 0, 0, 0.56);
+
+  --chart-1: #00d9ff;
+  --chart-2: #8c98ff;
+  --chart-3: #f2b066;
+  --chart-4: #6cc787;
+  --chart-5: #ee86ab;
+  --chart-6: #b496f0;
+  --chart-7: #5cc4b8;
+  --chart-8: #8f8f8a;
+
+  --shadow-float: 0 8px 24px rgba(0, 0, 0, 0.45);
+  --shadow-dialog: 0 20px 48px rgba(0, 0, 0, 0.55);
+
+  color-scheme: dark;
+}

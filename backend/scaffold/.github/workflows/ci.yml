@@ -1,0 +1,36 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version-file: go.mod }
+      - uses: actions/setup-node@v4
+        with: { node-version: 24 }
+      - run: corepack enable
+
+      - name: frontend
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile && pnpm check
+
+      - name: generated code is up to date
+        run: |
+          go install github.com/cloudwego/hertz/cmd/hz@v0.9.7
+          go install github.com/cloudwego/thriftgo@v0.4.1
+          ./script/hz_update.sh
+          go run ./cmd/generate
+          go generate ./container
+          git diff --exit-code
+
+      - name: backend
+        run: |
+          test -z "$(gofmt -l .)"
+          go vet ./...
+          go test ./...
