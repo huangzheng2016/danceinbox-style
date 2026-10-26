@@ -62,4 +62,7 @@ E2E=1 scripts/verify.sh lite   # 另外用 Chromium 跑完整的端到端用例
 
 ## 许可证
 
-字体:Plus Jakarta Sans 与 Geist Mono 均为 SIL Open Font License 1.1,许可证随字体位于 `frontend/assets/fonts/`。
+- 仓库主体代码和文档:MIT,见 `LICENSE`。明确标注的第三方内容仍按各自许可证使用。
+- 图标:Lucide 使用 ISC;部分 Lucide 图标源自 Feather,对应 MIT 与 Cole Bemis 版权声明。官方完整文本位于 `frontend/base/LUCIDE-LICENSE.txt`,复制 `base/` 时随组件一起保留。
+- 字体:Plus Jakarta Sans 与 Geist Mono 均为 SIL Open Font License 1.1,完整许可证随字体位于 `frontend/assets/fonts/`。
+- Go 和 npm 依赖保留其各自许可证;安装、构建和分发时应保留相应许可声明。

@@ -15,10 +15,11 @@ Prefer copying over composing from rules. When the skill and your instinct disag
 
 | Path | What it is |
 |---|---|
+| `LICENSE` | MIT for the repository's original code and documentation; third-party content keeps its own license |
 | `backend/scaffold/` | The project root: Go backend, IDL, configs, build/release/Docker/CI files, project `CLAUDE.md` |
 | `backend/scaffold-lite/` | Files that replace their scaffold counterparts for the lite profile (SQLite, in-process cache) |
 | `frontend/scaffold/` | The project's `frontend/`: Vite/TS/lint config, API client, auth store, router, reference pages, tests |
-| `frontend/base/` | Shared components and composables, copied verbatim to `frontend/src/base/` |
+| `frontend/base/` | Shared components and composables, including `LUCIDE-LICENSE.txt`, copied verbatim to `frontend/src/base/` |
 | `frontend/styles/` | `tokens.css` + `base.css`, copied verbatim to `frontend/src/styles/` |
 | `frontend/assets/fonts/` | Self-hosted fonts and licenses, copied to `frontend/public/fonts/` |
 | `backend/workflow.md` | Layout, adding a feature, IDL and handler conventions, auth, testing, version pins |

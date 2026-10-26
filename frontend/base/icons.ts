@@ -1,4 +1,4 @@
-// Lucide paths (ISC). Add icons here; pages never inline SVG or use emoji as icons.
+// Lucide paths (ISC + Feather MIT); see LUCIDE-LICENSE.txt. Add icons here; pages never inline SVG or use emoji as icons.
 export const ICON_PATHS = {
   x: ['M18 6 6 18', 'M6 6l12 12'],
   dots: [
