@@ -66,6 +66,7 @@ function onKeydown(e: KeyboardEvent) {
   min-width: 0;
   flex-shrink: 0;
   overflow-x: auto;
+  overflow-y: hidden;
 }
 .tab {
   flex-shrink: 0;
