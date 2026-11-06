@@ -43,7 +43,8 @@ const html = computed(() =>
   min-width: 0;
 }
 .code-block pre {
-  max-height: none;
+  max-height: min(480px, 60dvh);
+  overflow-wrap: anywhere;
   padding-right: 40px;
 }
 .code-copy {

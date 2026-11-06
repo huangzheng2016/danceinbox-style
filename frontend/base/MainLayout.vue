@@ -423,6 +423,7 @@ const userMenu = computed(() => [{ label: '退出登录', icon: 'log-out' as con
   min-height: 0;
   padding: var(--space-5);
   overflow-y: auto;
+  scrollbar-gutter: stable;
 }
 .stage:has(> .split) {
   overflow: hidden;

@@ -56,7 +56,11 @@ export function useList<T, F extends Filters>(
   )
 
   const state = useFetch((signal) => fetcher(params.value, signal))
-  watch(params, () => void state.refresh(), { immediate: true, deep: true })
+  watch(
+    () => JSON.stringify(params.value),
+    () => void state.refresh(),
+    { immediate: true },
+  )
 
   const items = computed(() => state.data.value?.items ?? [])
   const total = computed(() => state.data.value?.total ?? 0)

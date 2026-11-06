@@ -50,6 +50,8 @@ onBeforeUnmount(() => cancelAnimationFrame(frame))
 
 <style scoped>
 .md {
+  min-width: 0;
+  max-width: 100%;
   font-size: var(--text-base);
   line-height: 1.7;
   overflow-wrap: anywhere;
@@ -79,6 +81,10 @@ onBeforeUnmount(() => cancelAnimationFrame(frame))
   padding-left: var(--space-3);
   color: var(--text-secondary);
   border-left: 3px solid var(--border-strong);
+}
+.md :deep(img) {
+  max-width: 100%;
+  height: auto;
 }
 .md :deep(.md-table) {
   overflow-x: auto;

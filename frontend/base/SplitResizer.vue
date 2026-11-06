@@ -1,87 +1,156 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { app } from './app'
 
-// Sits between .split-master and .split-detail. Drag, arrow keys (Shift for bigger
-// steps), double-click to reset. The width persists per storageKey.
-const props = defineProps<{ storageKey: string }>()
-
-const MIN_MASTER = 320
-const MIN_DETAIL = 360
+const props = withDefaults(
+  defineProps<{
+    storageKey: string
+    label?: string
+    minMaster?: number
+    minDetail?: number
+    defaultPercent?: number
+  }>(),
+  { label: '调整列表宽度', minMaster: 320, minDetail: 360, defaultPercent: undefined },
+)
 const key = `${app.storagePrefix}.split.${props.storageKey}`
-
 const el = ref<HTMLElement | null>(null)
 const pct = ref(42)
+let preferredPct: number | null = null
+let beforeDrag: number | null = null
+let pointerID: number | null = null
 let dragStartX = 0
 let dragStartW = 0
-let dragging = false
+let observer: ResizeObserver | null = null
 
 const container = () => el.value?.parentElement ?? null
 const master = () => el.value?.previousElementSibling as HTMLElement | null
+const pixels = (value: string) => Number.parseFloat(value) || 0
 
-function clamp(p: number) {
-  const w = container()?.clientWidth ?? 0
-  if (w <= MIN_MASTER + MIN_DETAIL) return p
-  return Math.min(((w - MIN_DETAIL) / w) * 100, Math.max((MIN_MASTER / w) * 100, p))
+function geometry() {
+  const parent = container()
+  const divider = el.value
+  if (!parent || !divider) return { width: 0, available: 0 }
+  const style = getComputedStyle(parent)
+  const dividerStyle = getComputedStyle(divider)
+  const width = Math.max(0, parent.clientWidth - pixels(style.paddingLeft) - pixels(style.paddingRight))
+  const gap = pixels(style.columnGap === 'normal' ? style.gap : style.columnGap)
+  const occupied = 2 * gap + divider.offsetWidth + pixels(dividerStyle.marginLeft) + pixels(dividerStyle.marginRight)
+  return { width, available: Math.max(0, width - occupied) }
 }
 
-function apply(p: number, save = false) {
-  pct.value = clamp(p)
-  container()?.style.setProperty('--split-master-width', `${pct.value}%`)
-  if (save) {
-    try {
-      localStorage.setItem(key, pct.value.toFixed(1))
-    } catch {}
+function clamp(value: number) {
+  const { width, available } = geometry()
+  if (!width) return value
+  const minimum = Math.max(0, props.minMaster)
+  const detailMinimum = Math.max(0, props.minDetail)
+  if (available < minimum + detailMinimum) {
+    return ((available * minimum) / Math.max(1, minimum + detailMinimum) / width) * 100
   }
+  return Math.min(((available - detailMinimum) / width) * 100, Math.max((minimum / width) * 100, value))
+}
+
+function apply(value: number) {
+  pct.value = clamp(value)
+  container()?.style.setProperty('--split-master-width', `${pct.value}%`)
 }
 
 function measure() {
-  const w = container()?.clientWidth ?? 0
-  return w ? ((master()?.offsetWidth ?? 0) / w) * 100 : pct.value
+  const { width } = geometry()
+  return width ? ((master()?.offsetWidth ?? 0) / width) * 100 : pct.value
 }
 
-function onDown(e: PointerEvent) {
-  if (e.button !== 0) return
-  dragging = true
-  dragStartX = e.clientX
+function renderPreference() {
+  if (pointerID !== null) return
+  if (preferredPct !== null) apply(preferredPct)
+  else if (props.defaultPercent !== undefined) apply(props.defaultPercent)
+  else {
+    container()?.style.removeProperty('--split-master-width')
+    const measured = measure()
+    pct.value = clamp(measured)
+    if (pct.value !== measured) apply(measured)
+  }
+}
+
+function save(value: number) {
+  apply(value)
+  preferredPct = pct.value
+  try {
+    localStorage.setItem(key, preferredPct.toFixed(1))
+  } catch {}
+}
+
+function onDown(event: PointerEvent) {
+  if (event.button !== 0 || pointerID !== null) return
+  beforeDrag = preferredPct
+  pointerID = event.pointerId
+  dragStartX = event.clientX
   dragStartW = master()?.offsetWidth ?? 0
-  el.value?.setPointerCapture(e.pointerId)
+  el.value?.setPointerCapture(event.pointerId)
+  event.preventDefault()
 }
 
-function onMove(e: PointerEvent) {
-  const w = container()?.clientWidth
-  if (dragging && w) apply(((dragStartW + e.clientX - dragStartX) / w) * 100)
+function onMove(event: PointerEvent) {
+  const { width } = geometry()
+  if (pointerID === event.pointerId && width) apply(((dragStartW + event.clientX - dragStartX) / width) * 100)
 }
 
-function onUp() {
-  if (!dragging) return
-  dragging = false
-  apply(pct.value, true)
+function releasePointer() {
+  const id = pointerID
+  pointerID = null
+  if (id !== null && el.value?.hasPointerCapture(id)) el.value.releasePointerCapture(id)
 }
 
-function onKey(e: KeyboardEvent) {
-  const step = e.shiftKey ? 10 : 2
-  if (e.key === 'ArrowLeft') apply(measure() - step, true)
-  else if (e.key === 'ArrowRight') apply(measure() + step, true)
+function onUp(event: PointerEvent) {
+  if (pointerID !== event.pointerId) return
+  releasePointer()
+  save(pct.value)
+}
+
+function cancelDrag() {
+  if (pointerID === null) return
+  releasePointer()
+  preferredPct = beforeDrag
+  renderPreference()
+}
+
+function onKey(event: KeyboardEvent) {
+  if (pointerID !== null) return
+  const step = event.shiftKey ? 10 : 2
+  if (event.key === 'ArrowLeft') save(measure() - step)
+  else if (event.key === 'ArrowRight') save(measure() + step)
   else return
-  e.preventDefault()
+  event.preventDefault()
 }
 
 function reset() {
+  releasePointer()
+  preferredPct = null
   try {
     localStorage.removeItem(key)
   } catch {}
-  container()?.style.removeProperty('--split-master-width')
-  pct.value = measure()
+  renderPreference()
 }
 
 onMounted(() => {
   let saved = NaN
   try {
-    saved = parseFloat(localStorage.getItem(key) ?? '')
+    saved = Number.parseFloat(localStorage.getItem(key) ?? '')
   } catch {}
-  if (Number.isFinite(saved)) apply(saved)
-  else pct.value = measure()
+  if (Number.isFinite(saved) && saved >= 0 && saved <= 100) preferredPct = saved
+  renderPreference()
+  if (typeof ResizeObserver !== 'undefined') {
+    observer = new ResizeObserver(renderPreference)
+    const parent = container()
+    if (parent) observer.observe(parent)
+    if (el.value) observer.observe(el.value)
+  } else window.addEventListener('resize', renderPreference)
+})
+watch(() => [props.minMaster, props.minDetail, props.defaultPercent], renderPreference)
+onBeforeUnmount(() => {
+  observer?.disconnect()
+  window.removeEventListener('resize', renderPreference)
+  releasePointer()
+  container()?.style.removeProperty('--split-master-width')
 })
 </script>
 
@@ -91,14 +160,15 @@ onMounted(() => {
     class="split-resizer"
     role="separator"
     aria-orientation="vertical"
-    aria-label="调整列表宽度"
+    :aria-label="label"
     :aria-valuenow="Math.round(pct)"
     tabindex="0"
     title="拖动调整宽度，双击恢复默认"
     @pointerdown="onDown"
     @pointermove="onMove"
     @pointerup="onUp"
-    @pointercancel="onUp"
+    @pointercancel="cancelDrag"
+    @lostpointercapture="cancelDrag"
     @dblclick="reset"
     @keydown="onKey"
   />
@@ -106,11 +176,24 @@ onMounted(() => {
 
 <style scoped>
 .split-resizer {
+  position: relative;
   flex: 0 0 6px;
   margin: 0 calc((var(--space-3) + 6px) / -2);
   cursor: col-resize;
   touch-action: none;
   border-radius: 3px;
+}
+.split-resizer::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 2px;
+  width: 2px;
+  height: 32px;
+  max-height: 50%;
+  transform: translateY(-50%);
+  border-radius: 1px;
+  background: var(--border-strong);
 }
 .split-resizer:hover,
 .split-resizer:focus-visible {
