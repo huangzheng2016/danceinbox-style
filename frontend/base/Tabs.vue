@@ -57,13 +57,19 @@ function onKeydown(e: KeyboardEvent) {
   flex-direction: column;
   gap: var(--space-4);
   min-height: 0;
+  min-width: 0;
 }
 .tab-list {
   display: flex;
   gap: var(--space-1);
   border-bottom: 1px solid var(--border);
+  min-width: 0;
+  flex-shrink: 0;
+  overflow-x: auto;
 }
 .tab {
+  flex-shrink: 0;
+  white-space: nowrap;
   height: 34px;
   margin-bottom: -1px;
   padding: 0 12px;
@@ -87,5 +93,6 @@ function onKeydown(e: KeyboardEvent) {
   flex-direction: column;
   gap: var(--space-4);
   min-height: 0;
+  min-width: 0;
 }
 </style>
