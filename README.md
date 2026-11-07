@@ -1,72 +1,90 @@
 # danceinbox-style
 
-Hertz (Go) + Vue 3 全栈项目的 AI Agent Skill(入口 `SKILL.md`)。它不是一套规范文档,而是一份可以直接运行的脚手架:复制、改名后即可构建、启动、登录,并完整地管理一个示例资源。新功能通过复制示例功能和参考页面来开发,所以同一项目里每个接口、每个页面的结构和交互都一致。
+一套 Hertz (Go) + Vue 3 全栈开发规范，同时是一份**可以直接运行的脚手架**：复制、改名后即可构建、启动、登录，并管理一个完整的示例资源。新功能照着示例功能和参考页面复制，所以同一个项目里每个接口、每个页面的结构和交互都一致。
+
+入口是 [`SKILL.md`](SKILL.md)，可作为 Claude Code 的 skill 使用（放到 `~/.claude/skills/danceinbox-style/`），也可以当模板手动复制。
+
+## 特点
+
+- **能跑的代码，而不是文档**：脚手架每次修改都会从零生成项目，构建、测试并在浏览器里走一遍，确认可用。
+- **后端**：Thrift IDL + hz 生成接口，GORM 类型化查询，Wire 依赖注入；Cookie JWT 登录、三级角色、默认全部接口需登录。
+- **前端**：不用组件库，原生控件加一套共享组件；统一的青色强调色，完整的浅色和暗色主题。
+- **面向运营的中文界面**：文案规则、常见错误对照和自动检查脚本，避免把字段名、枚举码和技术说明直接摆上界面。
+- **两种部署规格**：完整版（MySQL + Redis）和轻量版（SQLite + 进程内缓存，单个二进制）。
 
 ## 包含什么
 
-**后端** (`backend/scaffold/`)
-- Thrift IDL + hz 代码生成,gorm/gen 类型化查询,Wire 依赖注入
-- 统一错误模型 (`biz/errs` + `resp.Fail`),中文错误信息直接显示给用户
-- Cookie JWT 会话(access 1h + refresh 30d),默认全部路由需要登录、公开路由显式登记,三级角色
-- 示例功能:列表/详情/新建/编辑/启停/删除/批量/导入/统计,含状态约束与幂等删除
-- AI 流式运行:SSE 走 IDL,事件落库带序号,断线按 Last-Event-ID 续传;工具调用事件;单对象单任务 + 全局并发上限;停止;进程重启后收尾
-- 文件上传:流式落盘 + SHA-256,随机存储名,扩展名白名单,下载强制 attachment
-- 审计日志:服务层在每次变更成功后记录操作人(来自请求上下文)、对象、修改前后快照;批量/导入只记一条摘要
-- 运行时设置:类型化设置文档按版本追加保存,基于版本号的冲突检测(唯一索引兜底),历史对比与恢复;各服务按需读取,保存即生效
-- 不依赖外部服务即可运行的测试 (`go test ./...`)
-- `build.sh`、`release.sh`、Dockerfile、Compose、Caddy、GitHub Actions CI
-- 轻量 profile (`backend/scaffold-lite/`):SQLite + 进程内缓存的单二进制部署
+### 后端（`backend/scaffold/`）
 
-**前端** (`frontend/`)
-- 无组件库:`styles/` 全局样式 + `base/` 共享组件
-  - 结构:应用壳(面包屑、用户菜单)、对话框、确认、浮层 (Popover)、操作菜单、标签页、分栏
-  - 输入:开关、分段选择、下拉选择 (Select,键盘/首字母跳转/禁用原因)、可搜索/远程/多选下拉 (Combobox)、时间范围筛选
-  - 展示:状态标签、提示条 (Alert)、全局悬停提示 (`v-tip`,图标按钮与截断文本自动提示,禁用按钮也能显示原因)、版本差异 (DiffView)、悬浮卡片 (HoverCard)、可复制文本、代码/JSON 块、Markdown、图表 (ECharts)、进度条、表格状态、空状态、分页、排序表头
-  - 编辑:Markdown 编辑/预览、代码编辑器、JSON 字段、带单位的时长/容量输入 (UnitInput)
-  - AI 与任务:运行记录 (AgentTranscript)、工具调用卡片 (ToolCallCard)、文件上传 (FileUpload)、步骤条 (Steps)、时间线 (Timeline)
-- 组合函数:`useUpload`(进度/取消/重试)、`usePolling`(完成后再排程、隐藏暂停、退避)、`useWizard`、`readEventStream`(SSE 解析与续传)、`useList`(筛选/排序/分页/选中全部进 URL,防抖、取消、过期响应保护)、`useFetch`、`useRouteQuery`、`useSelection`(批量)、`useDirtyGuard`(未保存提醒)、`useFormValidation`、`usePageTitle`
-- 参考页面:列表+详情+批量 (`ExampleList.vue`)、完整详情页 (`ExampleDetail.vue`,含运行/附件/记录标签页)、批量导入向导 (`ExampleImport.vue`)、系统设置页 (`Settings.vue`,分组表单、底部保存栏、冲突差异对话框、只读模式、历史版本与恢复)、审计日志 (`AuditList.vue`,只读列表+详情、筛选胶囊)、表单对话框、带图表和公告的概览、登录、404
-- 导航:按角色隐藏入口、待办计数角标(`loadNavBadges`)
-- 401 自动刷新会话、会话失效跳转登录并回跳、后端错误信息进入 Toast
-- 亮/暗主题(首屏前生效,无闪烁)、窄屏单栏、键盘可用
-- 显示辅助:`format.ts` 统一带单位格式化(`fmtMs`/`fmtBytes`/`fmtRatio`)、不限额度(`fmtLimit`)、枚举文案与筛选选项(`fmtLabel`/`labelOptions`);`backLink.ts` 跨页跳转带 `from`,顶栏返回回到来源页
-- Vitest 行为测试 + ESLint + Prettier + vue-tsc + `scripts/lint-ui.mjs`(未定义的 class、模板里的 JSON.stringify、`{{ x }} ms` 单位拼接、`中文（english）` 括号尾巴、中文半角标点),统一由 `pnpm check` 执行
+| 能力 | 说明 |
+|---|---|
+| 接口与错误 | Thrift IDL 先行；统一错误模型和响应格式，中文错误信息直接展示给用户 |
+| 认证与权限 | access 1 小时 + refresh 30 天的双 cookie；公开路由显式登记；USER / MODERATOR / ADMIN 三级角色 |
+| 示例功能 | 列表、详情、新建、编辑、启停、删除、批量操作、导入、统计；状态约束，删除可重试 |
+| AI 流式运行 | SSE 输出，事件带序号落库，断线按 `Last-Event-ID` 续传；支持工具调用、停止、并发上限、重启后收尾 |
+| 文件上传 | 流式落盘并计算 SHA-256，随机存储名，扩展名白名单，下载强制为附件 |
+| 审计日志 | 每次变更成功后记录操作人、对象和修改前后的值；批量和导入只记一条摘要 |
+| 运行时设置 | 设置按版本保存，保存时检测冲突，可对比、可恢复；各服务每次使用时读取，保存即生效 |
+| 测试与发布 | `go test ./...` 不依赖外部服务；`build.sh`、`release.sh`、Dockerfile、Compose、Caddy、GitHub Actions |
+| 轻量版 | `backend/scaffold-lite/`：SQLite + 进程内缓存 |
+
+### 前端（`frontend/`）
+
+**共享组件**（`base/`）
+
+| 类别 | 组件 |
+|---|---|
+| 结构 | 应用壳（面包屑、用户菜单、按角色隐藏的导航、待办角标）、对话框、确认框、浮层、操作菜单、标签页、可拖动分栏 |
+| 输入 | 开关、分段选择、下拉选择 `Select`、可搜索 / 远程 / 多选 `Combobox`、时间范围、带单位的时长和容量 `UnitInput` |
+| 展示 | 状态标签、提示条、全局悬停提示 `v-tip`、版本差异 `DiffView`、时间线 `Timeline`、悬浮卡片、代码和 JSON 块、Markdown、图表、进度条、空状态、分页、排序表头 |
+| 编辑 | Markdown 编辑 / 预览、代码编辑器、JSON 字段 |
+| AI 与任务 | 运行记录、工具调用卡片、文件上传、步骤条 |
+
+**组合函数**：`useList`（筛选、排序、分页、选中状态全部进 URL）、`useFetch`、`usePolling`、`useUpload`、`useWizard`、`useRouteQuery`、`useSelection`、`useDirtyGuard`、`useFormValidation`、`readEventStream` 等。
+
+**参考页面**：列表 + 详情 + 批量、完整详情页（运行 / 附件 / 记录标签页）、批量导入向导、系统设置页、审计日志、表单对话框、带图表和公告的概览、登录、404。
+
+**显示辅助**：`format.ts` 统一带单位的格式化和「不限」；`labels.ts` 统一枚举文案；`backLink.ts` 让跨页跳转后的返回回到来源页。
+
+**其他**：401 自动刷新会话、会话失效后跳转登录并回跳、亮 / 暗主题首屏无闪烁、窄屏单栏、键盘可用。
+
+**质量检查**：`pnpm check` 依次运行 Prettier、ESLint、`scripts/lint-ui.mjs`、Vitest、vue-tsc 和构建。其中 `lint-ui` 检查未定义的 class、模板里的 `JSON.stringify`、数值后拼接单位、`中文（english）` 括号尾巴、中文半角标点、原生 `<select>` 和 `title` 提示。
 
 ## 目录
 
 ```
-SKILL.md                   入口:新项目步骤、核心规则、技术栈
+SKILL.md                   入口：新项目步骤、核心规则、技术栈
 backend/
-  scaffold/                项目根目录模板(后端、IDL、配置、构建发布、CI、项目 CLAUDE.md)
-  scaffold-lite/           轻量 profile 的替换文件
-  workflow.md              目录结构、新增功能流程、IDL/Handler/鉴权/测试约定、版本钉选
+  scaffold/                项目根目录模板：后端、IDL、配置、构建发布、CI、项目 CLAUDE.md
+  scaffold-lite/           轻量版的替换文件
+  workflow.md              目录结构、新增功能流程、接口约定、错误、认证、审计、运行时设置、测试、版本钉选
   data.md                  查询、写入、事务、删除、迁移、缓存规则
-  deploy.md                本地运行、版本、发布、首次部署、轻量 profile、CI
+  deploy.md                本地运行、发布、首次部署、轻量版、CI
 frontend/
-  scaffold/                项目 frontend/ 模板(配置、API、鉴权、路由、参考页面、测试)
-  base/                    共享组件与组合函数,原样复制到 src/base/
+  scaffold/                项目 frontend/ 模板：配置、API、路由、参考页面、测试、lint-ui
+  base/                    共享组件和组合函数，原样复制到 src/base/
   styles/                  tokens.css + base.css
-  assets/fonts/            自托管字体及 OFL 许可证
-  design-system.md         页面模式、控件选择、交互规则、文案(含常见错误对照)、做减法、Token、检查清单
-scripts/verify.sh          按 SKILL.md 原样生成一个项目并构建、测试、启动
-scripts/e2e/               浏览器端到端用例(E2E=1 时由 verify.sh 运行)
+  assets/fonts/            自托管字体及许可证
+  design-system.md         页面模式、控件选择、交互规则、文案、做减法、Token、检查清单
+scripts/verify.sh          按 SKILL.md 的命令生成项目，构建、测试并启动
+scripts/e2e/               浏览器端到端用例
 ```
 
 ## 维护
 
-修改 skill 后运行:
+修改后运行：
 
 ```bash
-scripts/verify.sh lite    # 完整流程,包括启动并访问 /healthz
-scripts/verify.sh full    # 构建与测试(不启动 MySQL/Redis)
-E2E=1 scripts/verify.sh lite   # 另外用 Chromium 跑完整的端到端用例
+scripts/verify.sh lite         # 完整流程，包括启动并访问 /healthz
+scripts/verify.sh full         # 构建与测试（不启动 MySQL 和 Redis）
+E2E=1 scripts/verify.sh lite   # 另外用 Chromium 跑端到端用例
 ```
 
-需要 Go、pnpm (corepack)、python3、curl。
+需要 Go、pnpm（corepack）、python3、curl。
 
 ## 许可证
 
-- 仓库主体代码和文档:MIT,见 `LICENSE`。明确标注的第三方内容仍按各自许可证使用。
-- 图标:Lucide 使用 ISC;部分 Lucide 图标源自 Feather,对应 MIT 与 Cole Bemis 版权声明。官方完整文本位于 `frontend/base/LUCIDE-LICENSE.txt`,复制 `base/` 时随组件一起保留。
-- 字体:Plus Jakarta Sans 与 Geist Mono 均为 SIL Open Font License 1.1,完整许可证随字体位于 `frontend/assets/fonts/`。
-- Go 和 npm 依赖保留其各自许可证;安装、构建和分发时应保留相应许可声明。
+- 仓库主体代码和文档：MIT，见 `LICENSE`。明确标注的第三方内容仍按各自许可证使用。
+- 图标：Lucide 使用 ISC，部分图标源自 Feather（MIT）。完整文本在 `frontend/base/LUCIDE-LICENSE.txt`，复制 `base/` 时一并保留。
+- 字体：Plus Jakarta Sans 与 Geist Mono 使用 SIL Open Font License 1.1，许可证随字体放在 `frontend/assets/fonts/`。
+- Go 和 npm 依赖保留各自的许可证；安装、构建和分发时应保留相应声明。
