@@ -11,11 +11,11 @@
 *.swo
 *~
 
-# Node (本仓库不含 JS 工程，仅作防御)
+# Node: scripts/e2e installs here; scaffold builds happen in a temp directory
 node_modules/
 dist/
 
-# Go (本仓库不含 Go 工程，仅作防御)
+# Go: the scaffold is built by scripts/verify.sh in a temp directory, never here
 *.exe
 *.test
 *.out

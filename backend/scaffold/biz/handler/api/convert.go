@@ -8,6 +8,7 @@ import (
 	"MODULE_NAME/biz/errs"
 	"MODULE_NAME/biz/handler/resp"
 	attachment "MODULE_NAME/biz/model/api/attachment"
+	audit "MODULE_NAME/biz/model/api/audit"
 	auth "MODULE_NAME/biz/model/api/auth"
 	example "MODULE_NAME/biz/model/api/example"
 	run "MODULE_NAME/biz/model/api/run"
@@ -59,12 +60,34 @@ func toAttachment(a *model.Attachment) *attachment.Attachment {
 	}
 }
 
+// toAuditLogs resolves actor names with one query. papi has its own copy for the
+// audit page; the two stay identical.
+func toAuditLogs(ctx context.Context, rows []*model.AuditLog) ([]*audit.AuditLog, error) {
+	ids := make([]int64, 0, len(rows))
+	for _, r := range rows {
+		if r.ActorID != 0 {
+			ids = append(ids, r.ActorID)
+		}
+	}
+	names, err := container.Default.User.Names(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	return mapAll(rows, func(r *model.AuditLog) *audit.AuditLog {
+		return &audit.AuditLog{
+			ID: r.ID, ActorID: r.ActorID, ActorName: names[r.ActorID], Action: r.Action,
+			TargetType: r.TargetType, TargetID: r.TargetID, TargetName: r.TargetName,
+			Summary: r.Summary, Detail: r.Detail, CreatedAt: r.CreatedAt,
+		}
+	}), nil
+}
+
 func parseIDs(raw []string) ([]int64, error) {
 	ids := make([]int64, len(raw))
 	for i, s := range raw {
 		id, err := strconv.ParseInt(s, 10, 64)
 		if err != nil {
-			return nil, errs.Invalid("ID 格式错误:" + s)
+			return nil, errs.Invalid("ID 格式错误：" + s)
 		}
 		ids[i] = id
 	}

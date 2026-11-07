@@ -35,6 +35,8 @@ export function themeFromTokens(): object {
     textStyle: { fontFamily: v('--font-sans'), color: v('--text-secondary') },
     categoryAxis: axis,
     valueAxis: axis,
+    timeAxis: axis,
+    logAxis: axis,
     legend: { textStyle: { color: v('--text-secondary') } },
     tooltip: {
       backgroundColor: v('--surface-raised'),

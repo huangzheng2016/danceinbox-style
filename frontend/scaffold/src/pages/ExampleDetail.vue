@@ -23,6 +23,7 @@ import { useRouteQuery } from '@/base/useRouteQuery'
 import { deleteExample, getExample, setExampleEnabled } from '@/api/example'
 import ExampleAttachments from './ExampleAttachments.vue'
 import ExampleFormDialog from './ExampleFormDialog.vue'
+import ExampleHistory from './ExampleHistory.vue'
 import ExampleRuns from './ExampleRuns.vue'
 
 const route = useRoute()
@@ -39,6 +40,7 @@ const TABS = [
   { key: 'overview', label: '概览' },
   { key: 'runs', label: '运行' },
   { key: 'files', label: '附件' },
+  { key: 'history', label: '记录' },
   { key: 'raw', label: '原始数据' },
 ] as const
 type TabKey = (typeof TABS)[number]['key']
@@ -145,6 +147,9 @@ const menu = computed(() => [
         </template>
         <template #files>
           <ExampleAttachments :example-id="ex.id" />
+        </template>
+        <template #history>
+          <ExampleHistory :example-id="ex.id" :example-name="ex.name" />
         </template>
         <template #raw>
           <CodeBlock :value="ex" />

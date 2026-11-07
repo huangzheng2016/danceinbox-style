@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"MODULE_NAME/biz/actor"
 	"MODULE_NAME/biz/dal/db/model"
 	"MODULE_NAME/biz/errs"
 	"MODULE_NAME/biz/handler/resp"
@@ -45,6 +46,7 @@ func Auth() app.HandlerFunc {
 			u, err := container.Default.User.Active(ctx, uid)
 			if err == nil {
 				c.Set(ctxUser, u)
+				ctx = actor.With(ctx, u.ID)
 			} else if !isClientError(err) {
 				resp.Fail(ctx, c, err)
 				c.Abort()

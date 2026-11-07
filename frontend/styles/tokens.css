@@ -97,6 +97,7 @@
   --z-dialog: 200;
   --z-menu: 300;
   --z-toast: 400;
+  --z-tooltip: 500;
 
   color-scheme: light;
 }

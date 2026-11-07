@@ -17,7 +17,9 @@ import (
 // Bind binds and validates the request. On failure it writes a 400 and returns false.
 func Bind(c *app.RequestContext, req any) bool {
 	if err := c.BindAndValidate(req); err != nil {
-		write(c, errs.Invalid("请求参数错误:"+err.Error()))
+		// the binder's message is English and names Go fields; keep it in the log
+		hlog.Warnf("request_id=%s bind %s: %v", c.GetString("request_id"), c.Path(), err)
+		write(c, errs.Invalid("请求参数错误"))
 		return false
 	}
 	return true

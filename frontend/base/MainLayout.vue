@@ -4,10 +4,13 @@ import { RouterLink, RouterView, useRoute } from 'vue-router'
 import ActionMenu from './ActionMenu.vue'
 import ConfirmDialog from './ConfirmDialog.vue'
 import Icon from './Icon.vue'
-import { app, nav, useShellUser, type NavEntry, type NavGroup, type NavItem } from './app'
+import { app, loadNavBadges, nav, useShellUser, type NavBadge, type NavEntry, type NavGroup, type NavItem } from './app'
+import { readFrom } from './backLink'
+import { vTip } from './tooltip'
 import { isTopLayer, pushLayer, removeLayer } from './dialogStack'
 import { dismissToast, toasts } from './toast'
 import { pageTitle } from './usePageTitle'
+import { usePolling } from './usePolling'
 
 const route = useRoute()
 const user = useShellUser()
@@ -31,6 +34,39 @@ function save(key: string, value: unknown) {
 
 const isGroup = (e: NavEntry): e is NavGroup => 'children' in e
 
+// Entries the user's role may see; a group with nothing visible disappears.
+const visibleNav = computed<NavEntry[]>(() =>
+  nav
+    .map((e) => (isGroup(e) ? { ...e, children: e.children.filter(user.canSee) } : e))
+    .filter((e) => (isGroup(e) ? e.children.length > 0 : user.canSee(e))),
+)
+
+// ---------- badges ----------
+
+const badges = ref<Record<string, NavBadge>>({})
+let badgeCtrl: AbortController | null = null
+async function refreshBadges() {
+  badgeCtrl?.abort()
+  badgeCtrl = new AbortController()
+  badges.value = await loadNavBadges(badgeCtrl.signal)
+}
+const badgeOf = (item: NavItem) => (badges.value[item.to]?.count ? badges.value[item.to] : undefined)
+// a collapsed group shows the sum of its children, so nothing waits out of sight
+function groupBadge(g: NavGroup): NavBadge | undefined {
+  const count = g.children.reduce((n, c) => n + (badgeOf(c)?.count ?? 0), 0)
+  return count ? { count, tip: g.children.flatMap((c) => badgeOf(c)?.tip ?? []).join('\n') } : undefined
+}
+const fmtBadge = (n: number) => (n > 99 ? '99+' : String(n))
+const signedIn = computed(() => !!user.name.value)
+usePolling(refreshBadges, { interval: 60_000, enabled: signedIn })
+watch(
+  [signedIn, () => route.path],
+  ([on]) => {
+    if (on) refreshBadges().catch(() => {})
+  },
+  { immediate: true },
+)
+
 // ---------- active item and title ----------
 
 interface Leaf {
@@ -52,7 +88,17 @@ const active = computed<Leaf | undefined>(() => {
 const title = computed(() => pageTitle.value || route.meta.title || active.value?.item.label || app.name)
 
 // Detail routes set meta.parent to their list's path; the header then reads "示例 / 订单同步".
-const parent = computed(() => {
+// A `from` query (see backLink.ts) wins: the crumb is labeled by the nav entry owning that
+// path and links back to the exact page, tab and filters the user left.
+const parent = computed<{ to: string; label: string } | undefined>(() => {
+  const from = readFrom(route.query)
+  if (from) {
+    const path = from.split(/[?#]/)[0]
+    const owner = leaves.value
+      .filter((l) => path === l.item.to || (l.item.to !== '/' && path.startsWith(`${l.item.to}/`)))
+      .sort((a, b) => b.item.to.length - a.item.to.length)[0]
+    if (owner) return { to: from, label: owner.item.label }
+  }
   const to = route.meta.parent
   return to ? leaves.value.find((l) => l.item.to === to)?.item : undefined
 })
@@ -77,7 +123,8 @@ function toggleCollapsed() {
 }
 
 const expanded = ref(new Set<string>(load<string[]>(EXPANDED_KEY, [])))
-const isExpanded = (g: NavGroup) => expanded.value.has(g.key) || active.value?.group === g
+// by key: visibleNav holds filtered copies of the groups in nav
+const isExpanded = (g: NavGroup) => expanded.value.has(g.key) || active.value?.group?.key === g.key
 function toggleGroup(g: NavGroup) {
   const next = new Set(expanded.value)
   if (next.has(g.key)) next.delete(g.key)
@@ -158,17 +205,20 @@ const userMenu = computed(() => [{ label: '退出登录', icon: 'log-out' as con
       </RouterLink>
 
       <nav class="nav">
-        <template v-for="entry in nav" :key="isGroup(entry) ? entry.key : entry.to">
+        <template v-for="entry in visibleNav" :key="isGroup(entry) ? entry.key : entry.to">
           <RouterLink
             v-if="!isGroup(entry)"
+            v-tip.right="rail && entry.label"
             :to="entry.to"
             class="nav-item"
             :class="{ active: isActive(entry) }"
             :aria-current="isActive(entry) ? 'page' : undefined"
-            :title="rail ? entry.label : undefined"
           >
             <Icon :name="entry.icon" />
             <span v-if="!rail">{{ entry.label }}</span>
+            <span v-if="badgeOf(entry)" v-tip.right="badgeOf(entry)!.tip" class="nav-badge" :class="{ dot: rail }">
+              {{ rail ? '' : fmtBadge(badgeOf(entry)!.count) }}
+            </span>
           </RouterLink>
 
           <template v-else>
@@ -181,20 +231,30 @@ const userMenu = computed(() => [{ label: '退出登录', icon: 'log-out' as con
             >
               <Icon :name="entry.icon" />
               <span>{{ entry.label }}</span>
+              <span
+                v-if="!isExpanded(entry) && groupBadge(entry)"
+                v-tip.right="groupBadge(entry)!.tip"
+                class="nav-badge"
+              >
+                {{ fmtBadge(groupBadge(entry)!.count) }}
+              </span>
               <Icon name="chevron-right" :size="14" class="nav-chevron" />
             </button>
             <template v-if="rail || isExpanded(entry)">
               <RouterLink
                 v-for="child in entry.children"
                 :key="child.to"
+                v-tip.right="rail && child.label"
                 :to="child.to"
                 class="nav-item"
                 :class="{ active: isActive(child), 'nav-child': !rail }"
                 :aria-current="isActive(child) ? 'page' : undefined"
-                :title="rail ? child.label : undefined"
               >
                 <Icon :name="child.icon" />
                 <span v-if="!rail">{{ child.label }}</span>
+                <span v-if="badgeOf(child)" v-tip.right="badgeOf(child)!.tip" class="nav-badge" :class="{ dot: rail }">
+                  {{ rail ? '' : fmtBadge(badgeOf(child)!.count) }}
+                </span>
               </RouterLink>
             </template>
           </template>
@@ -202,10 +262,10 @@ const userMenu = computed(() => [{ label: '退出登录', icon: 'log-out' as con
       </nav>
 
       <button
+        v-tip.right="collapsed ? '展开侧边栏' : '收起侧边栏'"
         type="button"
         class="ghost nav-item collapse-toggle"
         :aria-label="collapsed ? '展开侧边栏' : '收起侧边栏'"
-        :title="collapsed ? '展开侧边栏' : '收起侧边栏'"
         @click="toggleCollapsed"
       >
         <Icon name="panel-left" />
@@ -235,7 +295,6 @@ const userMenu = computed(() => [{ label: '退出登录', icon: 'log-out' as con
           type="button"
           class="ghost btn-icon"
           :aria-label="dark ? '切换到浅色' : '切换到深色'"
-          :title="dark ? '切换到浅色' : '切换到深色'"
           @click="toggleTheme"
         >
           <Icon :name="dark ? 'sun' : 'moon'" />
@@ -325,6 +384,7 @@ const userMenu = computed(() => [{ label: '退出登录', icon: 'log-out' as con
 }
 
 .nav-item {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: flex-start;
@@ -340,6 +400,33 @@ const userMenu = computed(() => [{ label: '退出登录', icon: 'log-out' as con
   border-radius: var(--radius-sm);
   text-decoration: none;
   white-space: nowrap;
+}
+.nav-badge {
+  margin-left: auto;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  line-height: 18px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  color: var(--on-accent);
+  background: var(--accent);
+  border-radius: 9px;
+}
+.nav-badge + .nav-chevron {
+  margin-left: var(--space-1);
+}
+/* rail: a dot on the icon's corner instead of a number */
+.nav-badge.dot {
+  position: absolute;
+  top: 6px;
+  right: 14px;
+  min-width: 8px;
+  width: 8px;
+  height: 8px;
+  padding: 0;
 }
 .nav-item:hover {
   color: var(--text);

@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import Icon from './Icon.vue'
+import Select from './Select.vue'
 import { PAGE_SIZES } from './useList'
 
 const props = defineProps<{ total: number; page: number; size: number }>()
 const emit = defineEmits<{ 'update:page': [number]; 'update:size': [number] }>()
 
+const SIZE_OPTIONS = PAGE_SIZES.map((s) => ({ value: s, label: `${s} 条/页` }))
 const pages = computed(() => Math.max(1, Math.ceil(props.total / props.size)))
 </script>
 
@@ -13,13 +15,13 @@ const pages = computed(() => Math.max(1, Math.ceil(props.total / props.size)))
   <nav v-if="total > 0" class="pager" aria-label="分页">
     <span class="text-muted tabular">共 {{ total }} 条</span>
     <span class="pager-spacer" />
-    <select
-      :value="size"
-      aria-label="每页条数"
-      @change="emit('update:size', Number(($event.target as HTMLSelectElement).value))"
-    >
-      <option v-for="s in PAGE_SIZES" :key="s" :value="s">{{ s }} 条/页</option>
-    </select>
+    <Select
+      :model-value="size"
+      :options="SIZE_OPTIONS"
+      label="每页条数"
+      size="sm"
+      @update:model-value="emit('update:size', $event)"
+    />
     <button
       type="button"
       class="btn-icon"
@@ -49,9 +51,6 @@ const pages = computed(() => Math.max(1, Math.ceil(props.total / props.size)))
   gap: var(--space-2);
   flex-shrink: 0;
   font-size: var(--text-md);
-}
-.pager select {
-  width: auto;
 }
 .pager-spacer {
   flex: 1;

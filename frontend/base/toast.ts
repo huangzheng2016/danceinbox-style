@@ -34,7 +34,7 @@ function push(kind: ToastKind, text: string) {
 
 export const toast = {
   success: (text: string) => push('success', text),
-  // toast.error('保存失败', e) renders "保存失败:<backend msg>"
+  // toast.error('保存失败', e) renders "保存失败：<backend msg>"
   error: (action: string, cause?: unknown) =>
-    push('error', cause === undefined ? action : `${action}:${errorMessage(cause)}`),
+    push('error', cause === undefined ? action : `${action}：${errorMessage(cause)}`),
 }

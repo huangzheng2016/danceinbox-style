@@ -49,10 +49,15 @@ await step('status segmented filters', async () => {
   await page.waitForFunction(() => document.querySelectorAll('tbody tr.clickable').length === 5)
 })
 await step('date range: today includes all, custom past range shows filtered empty state', async () => {
-  await page.selectOption('.date-range select', 'today')
+  await page.click('[role=combobox][aria-label=时间范围]')
+  await page.click('[role=option]:has-text("今天")')
   await page.waitForURL(/range=today/)
   await page.waitForFunction(() => document.querySelectorAll('tbody tr.clickable').length === 5)
-  await page.selectOption('.date-range select', 'custom')
+  // keyboard: open, jump to the last option, choose
+  await page.focus('[role=combobox][aria-label=时间范围]')
+  await page.keyboard.press('ArrowDown')
+  await page.keyboard.press('End')
+  await page.keyboard.press('Enter')
   await page.fill('input[aria-label=开始日期]', '2020-01-01')
   await page.fill('input[aria-label=结束日期]', '2020-01-02')
   await page.locator('input[aria-label=结束日期]').dispatchEvent('change')

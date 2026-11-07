@@ -12,6 +12,8 @@ import (
 	"MODULE_NAME/biz/dal/db/dbtest"
 	"MODULE_NAME/biz/dal/db/model"
 	"MODULE_NAME/biz/errs"
+	"MODULE_NAME/biz/service/audit"
+	"MODULE_NAME/biz/service/settings"
 	"MODULE_NAME/config"
 )
 
@@ -22,7 +24,7 @@ func setup(t *testing.T) (*Service, int64) {
 	q := dbtest.New(t)
 	ex := &model.Example{Name: "a", Status: model.StatusEnabled}
 	_ = q.Example.WithContext(context.Background()).Create(ex)
-	s, err := NewService(q)
+	s, err := NewService(q, settings.NewService(q, audit.NewService(q)))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -100,5 +102,21 @@ func TestSaveRequiresExample(t *testing.T) {
 	s, _ := setup(t)
 	if _, err := s.Save(context.Background(), 999, 1, "a.txt", strings.NewReader("x")); code(err) != errs.CodeNotFound {
 		t.Fatalf("got %v", err)
+	}
+}
+
+func TestAttachmentLimitComesFromSettings(t *testing.T) {
+	ctx := context.Background()
+	s, exID := setup(t)
+	cfg := settings.Defaults()
+	cfg.MaxAttachments = 1
+	if _, err := s.settings.Save(ctx, 0, cfg, 0); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Save(ctx, exID, 1, "a.txt", strings.NewReader("x")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Save(ctx, exID, 1, "b.txt", strings.NewReader("y")); code(err) != errs.CodeConflict {
+		t.Fatalf("got %v, want the settings limit", err)
 	}
 }

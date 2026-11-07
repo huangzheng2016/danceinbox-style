@@ -27,6 +27,8 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/pages/ExampleDetail.vue'),
     meta: { parent: '/examples', title: '示例详情' },
   },
+  { path: '/audit', component: () => import('@/pages/AuditList.vue'), meta: { role: 'MODERATOR' } },
+  { path: '/settings', component: () => import('@/pages/Settings.vue'), meta: { role: 'MODERATOR' } },
   { path: '/:rest(.*)*', component: () => import('@/pages/NotFound.vue'), meta: { title: '页面不存在' } },
 ]
 

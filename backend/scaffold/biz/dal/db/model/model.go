@@ -10,6 +10,8 @@ func All() []any {
 		&Run{},
 		&RunEvent{},
 		&Attachment{},
+		&AuditLog{},
+		&SettingsVersion{},
 	}
 }
 
@@ -71,6 +73,39 @@ type Attachment struct {
 	CreatedAt   int64  `gorm:"autoCreateTime"`
 }
 
+// AuditLog is one change made by a person. Written by services after the change
+// succeeds (see biz/service/audit); never updated or deleted by the app.
+type AuditLog struct {
+	ID int64 `gorm:"primaryKey;autoIncrement"`
+	// 0 for changes made without a session (startup jobs, CLI)
+	ActorID    int64  `gorm:"not null;default:0;index"`
+	Action     string `gorm:"type:varchar(32);not null;index"`
+	TargetType string `gorm:"type:varchar(32);not null;index:idx_audit_target"`
+	// 0 when the change has no single target (batch, import)
+	TargetID int64 `gorm:"not null;default:0;index:idx_audit_target"`
+	// the target's name at the time, so the log still reads after a rename or delete
+	TargetName string `gorm:"type:varchar(255);not null;default:''"`
+	// one Chinese sentence for changes a diff cannot show ("批量停用 3 项，跳过 2 项")
+	Summary string `gorm:"type:varchar(500);not null;default:''"`
+	// JSON {"before": {...}, "after": {...}}, or "" when there is nothing to compare
+	Detail    string `gorm:"type:text;not null"`
+	CreatedAt int64  `gorm:"autoCreateTime;index"`
+}
+
+// SettingsVersion is one saved state of the app settings. Rows are only ever
+// appended; the highest Version is current. The unique index makes two
+// concurrent saves from the same base version fail instead of both winning.
+type SettingsVersion struct {
+	ID      int64 `gorm:"primaryKey;autoIncrement"`
+	Version int64 `gorm:"not null;uniqueIndex"`
+	// JSON of settings.Settings
+	Data string `gorm:"type:text;not null"`
+	// the version this one restored, 0 for an ordinary save
+	RestoredFrom int64 `gorm:"not null;default:0"`
+	CreatedBy    int64 `gorm:"not null"`
+	CreatedAt    int64 `gorm:"autoCreateTime"`
+}
+
 const (
 	RunQueued    = "queued"
 	RunRunning   = "running"
@@ -86,4 +121,20 @@ const (
 
 	StatusEnabled  = "enabled"
 	StatusDisabled = "disabled"
+)
+
+// Audit actions and target types. The frontend shows them through labels.ts
+// (AUDIT_ACTION, AUDIT_TARGET); a new one is added in both places.
+const (
+	AuditExampleCreate  = "example.create"
+	AuditExampleUpdate  = "example.update"
+	AuditExampleEnable  = "example.enable"
+	AuditExampleDisable = "example.disable"
+	AuditExampleDelete  = "example.delete"
+	AuditExampleBatch   = "example.batch"
+	AuditExampleImport  = "example.import"
+	AuditSettingsUpdate = "settings.update"
+
+	TargetExample  = "example"
+	TargetSettings = "settings"
 )

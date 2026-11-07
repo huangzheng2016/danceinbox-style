@@ -18,7 +18,7 @@ defineEmits<{ retry: [] }>()
   <tr v-if="error && !loading">
     <td :colspan="colspan" class="state-cell">
       <span class="state-error">
-        <span class="text-danger">加载失败:{{ error }}</span>
+        <span class="text-danger">加载失败：{{ error }}</span>
         <button type="button" class="btn-sm" @click="$emit('retry')">重试</button>
       </span>
     </td>

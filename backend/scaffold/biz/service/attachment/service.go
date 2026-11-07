@@ -20,6 +20,7 @@ import (
 	"MODULE_NAME/biz/dal/db/model"
 	"MODULE_NAME/biz/dal/db/query"
 	"MODULE_NAME/biz/errs"
+	"MODULE_NAME/biz/service/settings"
 	"MODULE_NAME/config"
 
 	"gorm.io/gorm"
@@ -33,20 +34,19 @@ var allowedExt = map[string]bool{
 	".zip": true, ".xlsx": true, ".docx": true,
 }
 
-const maxPerExample = 50
-
 type Service struct {
-	q   *query.Query
-	dir string
-	max int64
+	q        *query.Query
+	settings *settings.Service
+	dir      string
+	max      int64
 }
 
-func NewService(q *query.Query) (*Service, error) {
+func NewService(q *query.Query, st *settings.Service) (*Service, error) {
 	dir := config.C.Upload.Dir
 	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return nil, err
 	}
-	return &Service{q: q, dir: dir, max: int64(config.C.Upload.MaxMB) << 20}, nil
+	return &Service{q: q, settings: st, dir: dir, max: int64(config.C.Upload.MaxMB) << 20}, nil
 }
 
 // MaxBytes is the per-file limit, for the handler's early check and error message.
@@ -67,13 +67,17 @@ func (s *Service) Save(ctx context.Context, exampleID, userID int64, name string
 	if exists == 0 {
 		return nil, errs.NotFound("示例不存在")
 	}
+	cfg, err := s.settings.Current(ctx)
+	if err != nil {
+		return nil, err
+	}
 	a := s.q.Attachment
 	count, err := a.WithContext(ctx).Where(a.ExampleID.Eq(exampleID)).Count()
 	if err != nil {
 		return nil, err
 	}
-	if count >= maxPerExample {
-		return nil, errs.Conflict(fmt.Sprintf("每个示例最多 %d 个附件", maxPerExample))
+	if limit := cfg.Settings.MaxAttachments; limit > 0 && count >= limit {
+		return nil, errs.Conflict(fmt.Sprintf("每个示例最多 %d 个附件", limit))
 	}
 
 	stored, err := randomName()
@@ -177,7 +181,7 @@ func cleanName(name string) (string, error) {
 		return "", errs.Invalid("文件名过长")
 	}
 	if !allowedExt[strings.ToLower(filepath.Ext(name))] {
-		return "", errs.Invalid("不支持的文件类型:" + filepath.Ext(name))
+		return "", errs.Invalid("不支持的文件类型：" + filepath.Ext(name))
 	}
 	return name, nil
 }

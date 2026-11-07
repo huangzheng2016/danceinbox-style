@@ -138,16 +138,20 @@ button,
     color var(--dur-fast) var(--ease);
 }
 
-button:hover,
+button:hover:not(:disabled),
 .btn:hover {
   background: var(--surface-hover);
   text-decoration: none;
 }
 
+/* A disabled button still receives the pointer so its v-tip (the reason) can show;
+   the browser already blocks its clicks. A disabled link has no such guard. */
 button:disabled,
 .btn[aria-disabled='true'] {
   opacity: 0.5;
   cursor: not-allowed;
+}
+.btn[aria-disabled='true'] {
   pointer-events: none;
 }
 
@@ -157,7 +161,7 @@ button.primary,
   background: var(--accent);
   border-color: var(--accent);
 }
-button.primary:hover,
+button.primary:hover:not(:disabled),
 .btn.primary:hover {
   background: var(--accent-hover);
   border-color: var(--accent-hover);
@@ -169,7 +173,7 @@ button.danger,
   background: var(--danger);
   border-color: var(--danger);
 }
-button.danger:hover,
+button.danger:hover:not(:disabled),
 .btn.danger:hover {
   background: var(--danger-hover);
   border-color: var(--danger-hover);
@@ -181,7 +185,7 @@ button.ghost,
   background: transparent;
   border-color: transparent;
 }
-button.ghost:hover,
+button.ghost:hover:not(:disabled),
 .btn.ghost:hover {
   color: var(--text);
   background: var(--surface-hover);
@@ -192,7 +196,7 @@ button.ghost.danger,
   background: transparent;
   border-color: transparent;
 }
-button.ghost.danger:hover,
+button.ghost.danger:hover:not(:disabled),
 .btn.ghost.danger:hover {
   background: var(--danger-soft);
 }
@@ -257,9 +261,9 @@ textarea {
   resize: vertical;
 }
 
-input:hover,
-select:hover,
-textarea:hover {
+input:hover:not(:disabled, :focus),
+select:hover:not(:disabled, :focus),
+textarea:hover:not(:disabled, :focus) {
   border-color: var(--text-muted);
 }
 
@@ -321,6 +325,15 @@ label {
   font-size: var(--text-md);
 }
 
+/* <fieldset :disabled> makes a whole form read-only (every control, Select and
+   Switch included) without changing its layout */
+fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
 /* A form field: label text, control, then hint or error. */
 .field {
   display: flex;
@@ -370,6 +383,30 @@ label {
 }
 .form-grid > .span-2 {
   grid-column: 1 / -1;
+}
+@media (max-width: 640px) {
+  .form-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Page-level forms (settings): stays at the bottom of the viewport while the form
+   scrolls, so 保存 is always reachable and unsaved edits are always visible. */
+.save-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: var(--z-sticky);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-float);
+}
+.save-bar .spacer {
+  flex: 1;
 }
 
 .form-actions {
@@ -455,10 +492,6 @@ label {
   font-weight: 600;
   line-height: 1.1;
   font-variant-numeric: tabular-nums;
-}
-.stat-sub {
-  font-size: var(--text-sm);
-  color: var(--text-muted);
 }
 
 .kv {
@@ -660,12 +693,45 @@ td.wrap {
   white-space: nowrap;
 }
 
+/* second line in a cell (email under a name); block so it never glues onto the first */
+.cell-sub {
+  display: block;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
 td.state-cell {
   height: auto;
   padding: var(--space-6) var(--space-3);
   text-align: center;
   white-space: normal;
   color: var(--text-muted);
+}
+
+/* a URL filter that has no toolbar control (arrived from a link): name + clear button */
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: var(--control-h-sm);
+  padding: 0 2px 0 var(--space-2);
+  font-size: var(--text-sm);
+  white-space: nowrap;
+  border-radius: var(--radius-sm);
+  color: var(--accent-text);
+  background: var(--accent-soft);
+}
+.filter-chip > button {
+  height: 20px;
+  width: 20px;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  box-shadow: none;
+}
+.filter-chip > button:hover {
+  background: var(--surface-hover);
 }
 
 /* ---------- pills ----------
@@ -743,6 +809,27 @@ td.state-cell {
 .tok-comment {
   color: var(--text-muted);
   font-style: italic;
+}
+
+/* ---------- tooltip (tooltip.ts) ---------- */
+
+.tooltip {
+  position: fixed;
+  z-index: var(--z-tooltip);
+  max-width: 320px;
+  padding: 4px 8px;
+  font-size: var(--text-sm);
+  line-height: 1.4;
+  color: var(--surface-raised);
+  background: var(--text);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-float);
+  pointer-events: none;
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
+.tooltip[hidden] {
+  display: none;
 }
 
 /* ---------- misc ---------- */

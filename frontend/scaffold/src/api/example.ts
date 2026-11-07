@@ -1,5 +1,6 @@
 import type { Page } from '@/base/useList'
 import { rangeBounds } from '@/base/time'
+import type { AuditLog } from './audit'
 import { http, type Envelope } from './http'
 
 export interface Example {
@@ -102,4 +103,12 @@ export async function exampleStats(days: number, signal?: AbortSignal) {
     signal,
   })
   return data.days ?? []
+}
+
+export async function exampleHistory(id: string, p: { page: number; size: number }, signal?: AbortSignal) {
+  const { data } = await http.get<Envelope & { items: AuditLog[]; total: number }>('/api/example/history', {
+    params: { id, page: p.page, page_size: p.size },
+    signal,
+  })
+  return { items: data.items ?? [], total: data.total }
 }

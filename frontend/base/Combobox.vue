@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, useId, watch } from 'vue'
+import { computed, nextTick, ref, useId, watch } from 'vue'
 import Icon from './Icon.vue'
 import Popover from './Popover.vue'
 import { errorMessage, isAbort } from './errors'
@@ -10,7 +10,7 @@ export interface ComboOption {
   hint?: string
 }
 
-// Searchable select. Use it instead of <select> when the options are many, come
+// Searchable select. Use it instead of Select when the options are many, come
 // from the server, or several can be chosen. The model holds whole options, so a
 // saved value shows its label without waiting for a search.
 //   <Combobox v-model="owner" :load="searchUsers" placeholder="搜索用户" />
@@ -80,9 +80,16 @@ watch(query, () => {
 function show() {
   if (open.value || props.disabled) return
   open.value = true
-  active.value = 0
+  active.value = Math.max(0, shown.value.findIndex(isSelected))
   void fetchOptions()
 }
+
+const list = ref<HTMLElement | null>(null)
+watch([active, open], async () => {
+  if (!open.value) return
+  await nextTick()
+  list.value?.querySelector<HTMLElement>('.combo-option.active')?.scrollIntoView?.({ block: 'nearest' })
+})
 
 function onInput(e: Event) {
   const value = (e.target as HTMLInputElement).value
@@ -174,7 +181,7 @@ const inputValue = computed(() => (open.value || props.multiple ? query.value : 
     <Icon v-else name="chevron-down" :size="14" class="combo-caret" />
   </div>
   <Popover :open="open" :anchor="anchor" @close="hide">
-    <ul :id="`${id}-list`" role="listbox" :aria-multiselectable="multiple || undefined" class="combo-list">
+    <ul :id="`${id}-list`" ref="list" role="listbox" :aria-multiselectable="multiple || undefined" class="combo-list">
       <li
         v-for="(o, i) in shown"
         :id="`${id}-${i}`"
@@ -184,15 +191,15 @@ const inputValue = computed(() => (open.value || props.multiple ? query.value : 
         :class="{ active: i === active }"
         :aria-selected="isSelected(o)"
         @pointerdown.prevent
-        @pointerenter="active = i"
+        @pointermove="active = i"
         @click="choose(o)"
       >
         <span class="combo-label">{{ o.label }}</span>
         <span v-if="o.hint" class="combo-hint">{{ o.hint }}</span>
-        <Icon v-if="isSelected(o)" name="check" :size="14" class="combo-check" />
+        <Icon v-if="isSelected(o)" name="check" :size="14" />
       </li>
       <li v-if="loading && shown.length === 0" class="combo-note">搜索中</li>
-      <li v-else-if="loadError" class="combo-note text-danger">加载失败:{{ loadError }}</li>
+      <li v-else-if="loadError" class="combo-note text-danger">加载失败：{{ loadError }}</li>
       <li v-else-if="shown.length === 0" class="combo-note">无匹配项</li>
     </ul>
   </Popover>
@@ -215,7 +222,7 @@ const inputValue = computed(() => (open.value || props.multiple ? query.value : 
     border-color var(--dur-fast) var(--ease),
     box-shadow var(--dur-fast) var(--ease);
 }
-.combo:hover {
+.combo:hover:not(.disabled) {
   border-color: var(--text-muted);
 }
 .combo.open,

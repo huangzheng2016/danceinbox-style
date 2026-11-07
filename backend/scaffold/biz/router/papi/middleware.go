@@ -14,3 +14,9 @@ import (
 func rootMw() []app.HandlerFunc {
 	return []app.HandlerFunc{mw.RateLimit(20, 40), mw.Auth(), mw.RequireRole(model.RoleModerator)}
 }
+
+// Saving settings changes how the whole app behaves: admins only. Reading them
+// (and the version history) stays open to every /papi user.
+func _updatesettingsMw() []app.HandlerFunc {
+	return []app.HandlerFunc{mw.RequireRole(model.RoleAdmin)}
+}

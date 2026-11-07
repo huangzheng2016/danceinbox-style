@@ -1,12 +1,14 @@
 // Package example is the reference feature. New features copy its shape:
 // a struct over *query.Query, typed conditions only, errs for anything the
-// client should see.
+// client should see, and an audit entry after every change a person makes.
 package example
 
 import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"maps"
 	"strings"
 	"time"
 
@@ -14,14 +16,18 @@ import (
 	"MODULE_NAME/biz/dal/db/model"
 	"MODULE_NAME/biz/dal/db/query"
 	"MODULE_NAME/biz/errs"
+	"MODULE_NAME/biz/service/audit"
 
 	"gorm.io/gen/field"
 	"gorm.io/gorm"
 )
 
-type Service struct{ q *query.Query }
+type Service struct {
+	q     *query.Query
+	audit *audit.Service
+}
 
-func NewService(q *query.Query) *Service { return &Service{q: q} }
+func NewService(q *query.Query, a *audit.Service) *Service { return &Service{q: q, audit: a} }
 
 type ListParams struct {
 	Q           string
@@ -113,6 +119,18 @@ func (s *Service) validate(ctx context.Context, in Input) error {
 }
 
 func (s *Service) Create(ctx context.Context, in Input) (*model.Example, error) {
+	row, err := s.create(ctx, in)
+	if err != nil {
+		return nil, err
+	}
+	s.audit.Record(ctx, audit.Entry{
+		Action: model.AuditExampleCreate, TargetType: model.TargetExample, TargetID: row.ID, TargetName: row.Name,
+		After: s.snapshot(ctx, row),
+	})
+	return row, nil
+}
+
+func (s *Service) create(ctx context.Context, in Input) (*model.Example, error) {
 	if err := s.validate(ctx, in); err != nil {
 		return nil, err
 	}
@@ -132,12 +150,13 @@ func (s *Service) Update(ctx context.Context, id int64, in Input) (*model.Exampl
 	if err := s.validate(ctx, in); err != nil {
 		return nil, err
 	}
-	if _, err := s.Get(ctx, id); err != nil {
+	before, err := s.Get(ctx, id)
+	if err != nil {
 		return nil, err
 	}
 	e := s.q.Example
 	// UpdateSimple writes zero values too (an emptied remark), unlike Updates(struct).
-	_, err := e.WithContext(ctx).Where(e.ID.Eq(id)).UpdateSimple(
+	_, err = e.WithContext(ctx).Where(e.ID.Eq(id)).UpdateSimple(
 		e.Name.Value(strings.TrimSpace(in.Name)),
 		e.Remark.Value(in.Remark),
 		e.Status.Value(status(in.Enabled)),
@@ -147,35 +166,65 @@ func (s *Service) Update(ctx context.Context, id int64, in Input) (*model.Exampl
 	if err != nil {
 		return nil, conflict(err)
 	}
-	return s.Get(ctx, id)
+	after, err := s.Get(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	// saving an unchanged form is not a change worth a log line
+	if b, a := s.snapshot(ctx, before), s.snapshot(ctx, after); !maps.Equal(b, a) {
+		s.audit.Record(ctx, audit.Entry{
+			Action: model.AuditExampleUpdate, TargetType: model.TargetExample, TargetID: id, TargetName: after.Name,
+			Before: b, After: a,
+		})
+	}
+	return after, nil
 }
 
 func (s *Service) SetEnabled(ctx context.Context, id int64, enabled bool) error {
-	if _, err := s.Get(ctx, id); err != nil {
+	row, err := s.Get(ctx, id)
+	if err != nil || row.Status == status(enabled) {
 		return err
 	}
 	e := s.q.Example
-	_, err := e.WithContext(ctx).Where(e.ID.Eq(id)).UpdateSimple(e.Status.Value(status(enabled)))
-	return err
+	if _, err := e.WithContext(ctx).Where(e.ID.Eq(id)).UpdateSimple(e.Status.Value(status(enabled))); err != nil {
+		return err
+	}
+	action := model.AuditExampleDisable
+	if enabled {
+		action = model.AuditExampleEnable
+	}
+	s.audit.Record(ctx, audit.Entry{Action: action, TargetType: model.TargetExample, TargetID: id, TargetName: row.Name})
+	return nil
 }
 
 // Delete only removes disabled examples, so an enabled one cannot vanish by
 // accident. The state check is part of the WHERE clause, not a separate read.
 // Deleting a row that is already gone succeeds, so retries are safe.
 func (s *Service) Delete(ctx context.Context, id int64) error {
-	e := s.q.Example
-	res, err := e.WithContext(ctx).Where(e.ID.Eq(id), e.Status.Eq(model.StatusDisabled)).Delete()
-	if err != nil || res.RowsAffected > 0 {
-		return err
-	}
-	_, err = s.Get(ctx, id)
+	row, err := s.Get(ctx, id)
 	if codeOf(err) == errs.CodeNotFound {
 		return nil
 	}
 	if err != nil {
 		return err
 	}
-	return errs.Conflict("请先停用再删除")
+	e := s.q.Example
+	res, err := e.WithContext(ctx).Where(e.ID.Eq(id), e.Status.Eq(model.StatusDisabled)).Delete()
+	if err != nil {
+		return err
+	}
+	if res.RowsAffected == 0 {
+		// either enabled, or deleted by someone else since the read
+		if _, err := s.Get(ctx, id); codeOf(err) == errs.CodeNotFound {
+			return nil
+		}
+		return errs.Conflict("请先停用再删除")
+	}
+	s.audit.Record(ctx, audit.Entry{
+		Action: model.AuditExampleDelete, TargetType: model.TargetExample, TargetID: id, TargetName: row.Name,
+		Before: s.snapshot(ctx, row),
+	})
+	return nil
 }
 
 // Batch applies action to every id. Ids that do not exist, and enabled rows for
@@ -203,7 +252,26 @@ func (s *Service) Batch(ctx context.Context, ids []int64, action string) (done, 
 	default:
 		return 0, 0, errs.Invalid("不支持的批量操作")
 	}
-	return done, len(ids) - done, nil
+	skipped = len(ids) - done
+	if done > 0 {
+		summary := fmt.Sprintf("批量%s %d 项", batchVerb[action], done)
+		if skipped > 0 {
+			summary += fmt.Sprintf("，跳过 %d 项", skipped)
+		}
+		s.audit.Record(ctx, audit.Entry{Action: model.AuditExampleBatch, TargetType: model.TargetExample, Summary: summary})
+	}
+	return done, skipped, nil
+}
+
+var batchVerb = map[string]string{"enable": "启用", "disable": "停用", "delete": "删除"}
+
+// History is the example's audit trail, newest first. It checks the example
+// exists so a wrong id reads as 404, not as an empty history.
+func (s *Service) History(ctx context.Context, id int64, page, size int32) ([]*model.AuditLog, int64, error) {
+	if _, err := s.Get(ctx, id); err != nil {
+		return nil, 0, err
+	}
+	return s.audit.List(ctx, audit.ListParams{TargetType: model.TargetExample, TargetID: id, Page: page, Size: size})
 }
 
 type ImportFailure struct {
@@ -212,10 +280,20 @@ type ImportFailure struct {
 }
 
 // Import creates rows one by one and reports each failure with its 1-based row
-// number, so the user can fix exactly those rows and import them again.
+// number, so the user can fix exactly those rows and import them again. The
+// audit log gets one entry for the import, not one per row.
 func (s *Service) Import(ctx context.Context, rows []Input) (created int, failed []ImportFailure, err error) {
+	defer func() {
+		if created > 0 {
+			summary := fmt.Sprintf("导入 %d 项", created)
+			if len(failed) > 0 {
+				summary += fmt.Sprintf("，失败 %d 项", len(failed))
+			}
+			s.audit.Record(ctx, audit.Entry{Action: model.AuditExampleImport, TargetType: model.TargetExample, Summary: summary})
+		}
+	}()
 	for i, in := range rows {
-		_, err := s.Create(ctx, in)
+		_, err := s.create(ctx, in)
 		var e *errs.Error
 		switch {
 		case err == nil:
@@ -261,6 +339,19 @@ func (s *Service) Stats(ctx context.Context, days int, now time.Time) ([]DayCoun
 		}
 	}
 	return out, nil
+}
+
+// snapshot is what the audit log compares: the fields a person edits, keyed as
+// the frontend labels them (AUDIT_FIELDS.example), with the owner as a name.
+func (s *Service) snapshot(ctx context.Context, e *model.Example) map[string]string {
+	owner := ""
+	if e.OwnerID != 0 {
+		u := s.q.User
+		if row, err := u.WithContext(ctx).Select(u.Username).Where(u.ID.Eq(e.OwnerID)).First(); err == nil {
+			owner = row.Username
+		}
+	}
+	return map[string]string{"name": e.Name, "status": e.Status, "remark": e.Remark, "owner": owner, "config": e.Config}
 }
 
 func status(enabled bool) string {

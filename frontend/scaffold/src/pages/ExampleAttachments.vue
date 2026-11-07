@@ -74,16 +74,15 @@ const STATUS_TEXT = { waiting: '等待中', uploading: '上传中', done: '已�
 
     <ul v-if="upload.items.value.length" class="queue" aria-label="上传队列">
       <li v-for="it in upload.items.value" :key="it.id" class="queue-item">
-        <span class="queue-name truncate" :title="it.file.name">{{ it.file.name }}</span>
+        <span class="truncate">{{ it.file.name }}</span>
         <ProgressBar
           v-if="it.status === 'uploading' || it.status === 'done'"
           :value="it.progress"
           :max="1"
           :tone="it.status === 'done' ? 'success' : 'accent'"
-          class="queue-bar"
         />
         <span v-else class="text-sm" :class="it.status === 'failed' ? 'text-danger' : 'text-muted'">
-          {{ STATUS_TEXT[it.status] }}{{ it.error ? `:${it.error}` : '' }}
+          {{ STATUS_TEXT[it.status] }}{{ it.error ? `：${it.error}` : '' }}
         </span>
         <span class="queue-actions">
           <button
@@ -117,7 +116,7 @@ const STATUS_TEXT = { waiting: '等待中', uploading: '上传中', done: '已�
         <tbody>
           <tr v-for="a in list.data.value ?? []" :key="a.id">
             <td>
-              <span class="truncate" :title="a.name">{{ a.name }}</span>
+              <span class="truncate">{{ a.name }}</span>
             </td>
             <td class="num">{{ fmtBytes(a.size) }}</td>
             <td class="num">{{ fmtTime(a.created_at) }}</td>

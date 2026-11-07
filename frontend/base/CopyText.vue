@@ -16,7 +16,7 @@ const copied = ref(false)
 let timer: ReturnType<typeof setTimeout> | undefined
 
 async function copy() {
-  if (!(await writeClipboard(props.value))) return toast.error('复制失败:浏览器未允许访问剪贴板')
+  if (!(await writeClipboard(props.value))) return toast.error('复制失败：浏览器未允许访问剪贴板')
   copied.value = true
   clearTimeout(timer)
   timer = setTimeout(() => (copied.value = false), 1500)
@@ -27,16 +27,10 @@ onBeforeUnmount(() => clearTimeout(timer))
 
 <template>
   <span class="copy-text">
-    <span v-if="!iconOnly" :class="{ mono }" class="copy-value" :title="value"
+    <span v-if="!iconOnly" :class="{ mono }" class="copy-value truncate"
       ><slot>{{ value }}</slot></span
     >
-    <button
-      type="button"
-      class="ghost btn-icon btn-sm"
-      :aria-label="copied ? '已复制' : '复制'"
-      :title="copied ? '已复制' : '复制'"
-      @click.stop="copy"
-    >
+    <button type="button" class="ghost btn-icon btn-sm" :aria-label="copied ? '已复制' : '复制'" @click.stop="copy">
       <Icon :name="copied ? 'check' : 'copy'" :size="14" :class="{ 'text-success': copied }" />
     </button>
   </span>

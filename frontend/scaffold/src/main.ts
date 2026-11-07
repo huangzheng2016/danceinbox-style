@@ -4,10 +4,12 @@ import MainLayout from '@/base/MainLayout.vue'
 import { setSessionExpiredHandler } from '@/api/http'
 import { router } from '@/router'
 import { useAuthStore } from '@/stores/auth'
+import { installTooltips } from '@/base/tooltip'
 import '@/styles/tokens.css'
 import '@/styles/base.css'
 
 const app = createApp(MainLayout).use(createPinia()).use(router)
+installTooltips()
 
 setSessionExpiredHandler(() => {
   useAuthStore().clear()

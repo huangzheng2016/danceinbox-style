@@ -166,7 +166,7 @@ const failedLines = computed(() =>
           <div>
             <h3>选择 CSV 文件</h3>
             <p class="card-desc">
-              第一行为表头:名称(必填)、备注、启用(是/否)、配置(JSON)。一次最多 {{ MAX_ROWS }} 行。
+              第一行为表头：名称（必填）、备注、启用（是/否）、配置（JSON）。一次最多 {{ MAX_ROWS }} 行。
             </p>
           </div>
           <button type="button" class="ghost btn-sm" @click="downloadTemplate">
@@ -221,7 +221,7 @@ const failedLines = computed(() =>
           <dt>将导入</dt>
           <dd>{{ valid.length }} 行</dd>
           <dt>将跳过</dt>
-          <dd>{{ invalid.length }} 行(检查未通过)</dd>
+          <dd>{{ invalid.length }} 行（检查未通过）</dd>
         </dl>
         <p class="text-muted text-sm">与已有示例重名的行会在导入时失败，并在结果中列出。</p>
       </template>

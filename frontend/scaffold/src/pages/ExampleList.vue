@@ -15,8 +15,10 @@ import SplitResizer from '@/base/SplitResizer.vue'
 import StatusPill from '@/base/StatusPill.vue'
 import Switch from '@/base/Switch.vue'
 import TableState from '@/base/TableState.vue'
+import { labelOptions } from '@/base/format'
 import { EXAMPLE_STATUS } from '@/base/labels'
 import { copyText } from '@/base/clipboard'
+import { vTip } from '@/base/tooltip'
 import { fmtRelative, fmtTime } from '@/base/time'
 import { toast } from '@/base/toast'
 import { useConfirm } from '@/base/useConfirm'
@@ -40,10 +42,7 @@ const { query, set } = useRouteQuery({ id: '' })
 const selection = useSelection(list.items)
 const confirm = useConfirm()
 
-const STATUS_OPTIONS = [
-  { value: '', label: '全部' },
-  ...Object.entries(EXAMPLE_STATUS).map(([value, l]) => ({ value, label: l.text })),
-]
+const STATUS_OPTIONS = [{ value: '', label: '全部' }, ...labelOptions(EXAMPLE_STATUS)]
 const filtered = computed(() => !!(list.filters.q || list.filters.status || list.filters.range))
 
 // ---------- selection and detail ----------
@@ -165,14 +164,7 @@ async function batch(action: BatchAction) {
         <Segmented v-model="list.filters.status" :options="STATUS_OPTIONS" label="状态" />
         <DateRange v-model="list.filters.range" />
         <span class="spacer" />
-        <button
-          type="button"
-          class="btn-icon"
-          aria-label="刷新"
-          title="刷新"
-          :disabled="list.loading.value"
-          @click="list.refresh"
-        >
+        <button type="button" class="btn-icon" aria-label="刷新" :disabled="list.loading.value" @click="list.refresh">
           <Icon name="refresh-cw" />
         </button>
         <RouterLink to="/examples/import" class="btn"><Icon name="upload" />导入</RouterLink>
@@ -230,7 +222,7 @@ async function batch(action: BatchAction) {
                   @update:model-value="toggle(row, $event)"
                 />
               </td>
-              <td class="num" :title="fmtTime(row.updated_at)">{{ fmtRelative(row.updated_at) }}</td>
+              <td v-tip="fmtTime(row.updated_at)" class="num">{{ fmtRelative(row.updated_at) }}</td>
               <td class="row-actions">
                 <span>
                   <button type="button" class="ghost btn-sm" @click.stop="openEdit(row)">编辑</button>
@@ -266,7 +258,7 @@ async function batch(action: BatchAction) {
     <section class="split-detail">
       <div v-if="!selectedId" class="split-empty">选择左侧一条记录查看详情</div>
       <Loading v-else-if="!detail.data.value && detail.loading.value" />
-      <div v-else-if="detail.error.value" class="split-empty text-danger">加载失败:{{ detail.error.value }}</div>
+      <div v-else-if="detail.error.value" class="split-empty text-danger">加载失败：{{ detail.error.value }}</div>
       <template v-else-if="detail.data.value">
         <div class="detail-head">
           <button type="button" class="ghost btn-icon split-back" aria-label="返回列表" @click="set({ id: '' })">

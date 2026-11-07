@@ -11,6 +11,8 @@ import (
 	"MODULE_NAME/biz/dal/db/model"
 	"MODULE_NAME/biz/dal/db/query"
 	"MODULE_NAME/biz/errs"
+	"MODULE_NAME/biz/service/audit"
+	"MODULE_NAME/biz/service/settings"
 )
 
 // scriptAgent emits two text chunks, one tool call, then waits for release or cancellation.
@@ -49,7 +51,7 @@ func setup(t *testing.T, agent Agent) (*Service, *query.Query, *model.Example) {
 	if err := q.Example.WithContext(context.Background()).Create(ex); err != nil {
 		t.Fatal(err)
 	}
-	s, err := NewService(q, unlockedCache{}, agent)
+	s, err := NewService(q, unlockedCache{}, agent, settings.NewService(q, audit.NewService(q)))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -177,11 +179,25 @@ func TestRestartFailsInterruptedRuns(t *testing.T) {
 	stale := &model.Run{ExampleID: ex.ID, Status: model.RunRunning}
 	_ = q.Run.WithContext(ctx).Create(stale)
 
-	if _, err := NewService(q, unlockedCache{}, s.agent); err != nil {
+	if _, err := NewService(q, unlockedCache{}, s.agent, s.settings); err != nil {
 		t.Fatal(err)
 	}
 	replay, live, _, _ := s.Subscribe(ctx, stale.ID, 0)
 	if live != nil || len(replay) != 1 || replay[0].Type != "done" {
 		t.Fatalf("an interrupted run must still end its stream: %v", types(replay))
+	}
+}
+
+func TestPausedRunsAreRefused(t *testing.T) {
+	ctx := context.Background()
+	s, _, ex := setup(t, &scriptAgent{release: make(chan struct{})})
+	cfg := settings.Defaults()
+	cfg.RunsPaused = true
+	if _, err := s.settings.Save(ctx, 0, cfg, 0); err != nil {
+		t.Fatal(err)
+	}
+	var e *errs.Error
+	if _, err := s.Start(ctx, ex.ID, 1); !errors.As(err, &e) || e.Code != errs.CodeConflict {
+		t.Fatalf("got %v, want conflict", err)
 	}
 }

@@ -2,6 +2,7 @@
 import { nextTick, ref } from 'vue'
 import Icon from './Icon.vue'
 import Popover from './Popover.vue'
+import { vTip } from './tooltip'
 import type { IconName } from './icons'
 
 export interface MenuItem {
@@ -64,7 +65,6 @@ function select(item: MenuItem) {
     type="button"
     :class="label ? 'ghost' : 'ghost btn-icon btn-sm'"
     :aria-label="label || '更多操作'"
-    :title="label ? undefined : '更多操作'"
     aria-haspopup="menu"
     :aria-expanded="open"
     @click.stop="open ? (open = false) : show()"
@@ -77,12 +77,12 @@ function select(item: MenuItem) {
       <button
         v-for="item in items"
         :key="item.label"
+        v-tip="item.title"
         type="button"
         role="menuitem"
         class="menu-item"
         :class="{ danger: item.danger }"
         :disabled="item.disabled"
-        :title="item.title"
         @click="select(item)"
       >
         <Icon v-if="item.icon" :name="item.icon" :size="14" />
@@ -102,7 +102,7 @@ function select(item: MenuItem) {
   background: transparent;
   border: 0;
 }
-.menu-item:hover,
+.menu-item:hover:not(:disabled),
 .menu-item:focus-visible {
   background: var(--surface-hover);
   outline: none;
@@ -110,11 +110,8 @@ function select(item: MenuItem) {
 .menu-item.danger {
   color: var(--danger);
 }
-.menu-item.danger:hover,
+.menu-item.danger:hover:not(:disabled),
 .menu-item.danger:focus-visible {
   background: var(--danger-soft);
-}
-.menu-item:disabled {
-  pointer-events: auto;
 }
 </style>

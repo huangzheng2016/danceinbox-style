@@ -6,8 +6,10 @@ import (
 	"MODULE_NAME/biz/dal/db"
 	"MODULE_NAME/biz/extension/cache"
 	"MODULE_NAME/biz/service/attachment"
+	"MODULE_NAME/biz/service/audit"
 	"MODULE_NAME/biz/service/example"
 	"MODULE_NAME/biz/service/run"
+	"MODULE_NAME/biz/service/settings"
 	"MODULE_NAME/biz/service/user"
 
 	"github.com/google/wire"
@@ -20,6 +22,8 @@ func build() (*Container, error) {
 		db.Query,
 		cache.New,
 		user.NewService,
+		audit.NewService,
+		settings.NewService,
 		example.NewService,
 		run.NewService,
 		run.NewDemoAgent,

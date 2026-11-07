@@ -40,7 +40,7 @@ func (a *DemoAgent) Run(ctx context.Context, ex *model.Example, out Output) erro
 			return nil, err
 		}
 		if strings.Contains(ex.Remark, "fail") {
-			return nil, errors.New("配置校验失败:缺少必填项 target")
+			return nil, errors.New("配置校验失败：缺少必填项 target")
 		}
 		cfg := map[string]any{}
 		if ex.Config != "" {

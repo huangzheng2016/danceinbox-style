@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"MODULE_NAME/biz/handler/resp"
+	audit "MODULE_NAME/biz/model/api/audit"
 	example "MODULE_NAME/biz/model/api/example"
 	base "MODULE_NAME/biz/model/base"
 	svc "MODULE_NAME/biz/service/example"
@@ -178,4 +179,23 @@ func ExampleStats(ctx context.Context, c *app.RequestContext) {
 		out.Days[i] = &example.DayCount{Date: d.Date, Created: int32(d.Created)}
 	}
 	c.JSON(consts.StatusOK, out)
+}
+
+// ExampleHistory .
+// @router /api/example/history [GET]
+func ExampleHistory(ctx context.Context, c *app.RequestContext) {
+	var req audit.ExampleHistoryReq
+	if !resp.Bind(c, &req) {
+		return
+	}
+	rows, total, err := container.Default.Example.History(ctx, req.ID, req.Page, req.PageSize)
+	var items []*audit.AuditLog
+	if err == nil {
+		items, err = toAuditLogs(ctx, rows)
+	}
+	if err != nil {
+		resp.Fail(ctx, c, err)
+		return
+	}
+	c.JSON(consts.StatusOK, &audit.ListAuditLogsResp{Items: items, Total: total})
 }

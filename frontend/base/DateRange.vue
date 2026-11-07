@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
+import Select from './Select.vue'
 import { RANGE_PRESETS } from './time'
 
 // Time filter for toolbars. The model is the URL-friendly range string described
@@ -7,6 +8,11 @@ import { RANGE_PRESETS } from './time'
 const model = defineModel<string>({ required: true })
 
 const CUSTOM = 'custom'
+const MODES = [
+  { value: '', label: '不限时间' },
+  ...RANGE_PRESETS.map((p) => ({ value: p.value as string, label: p.label })),
+  { value: CUSTOM, label: '自定义' },
+]
 const mode = ref('')
 const from = ref('')
 const to = ref('')
@@ -40,11 +46,7 @@ function onDate() {
 
 <template>
   <span class="date-range">
-    <select :value="mode" aria-label="时间范围" @change="onMode(($event.target as HTMLSelectElement).value)">
-      <option value="">不限时间</option>
-      <option v-for="p in RANGE_PRESETS" :key="p.value" :value="p.value">{{ p.label }}</option>
-      <option :value="CUSTOM">自定义</option>
-    </select>
+    <Select :model-value="mode" :options="MODES" label="时间范围" @update:model-value="onMode" />
     <template v-if="mode === CUSTOM">
       <input v-model="from" type="date" aria-label="开始日期" @change="onDate" />
       <span class="text-muted">至</span>
@@ -59,7 +61,7 @@ function onDate() {
   align-items: center;
   gap: var(--space-2);
 }
-.date-range :is(select, input) {
+.date-range input {
   width: auto;
 }
 </style>

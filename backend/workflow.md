@@ -13,6 +13,7 @@ biz/
   handler/resp/           Bind / Fail / Abort: the one error envelope
   handler/health.go       /livez, /healthz
   errs/                   errors the client may see (status + code + msg)
+  actor/                  the signed-in user's id in the request context (set by mw.Auth)
   mw/                     Auth, RequireRole, RateLimit, AccessLog
   service/<feature>/      business logic over the typed query layer
   dal/db/model/           hand-written GORM structs: the schema
@@ -39,7 +40,7 @@ The order matters: each step produces what the next one consumes. The `example` 
 
 1. **Schema.** Add the struct to `biz/dal/db/model/` and to `model.All()`. Run `go run ./cmd/generate`.
 2. **Service test first.** `biz/service/<feature>/service_test.go`, table-driven, against `dbtest.New(t)`. Watch it fail.
-3. **Service.** `biz/service/<feature>/service.go`: `type Service struct{ q *query.Query }`, `NewService(q)`. Return `errs.*` for anything the user should read. Follow `backend/data.md`.
+3. **Service.** `biz/service/<feature>/service.go`: `type Service struct{ q *query.Query; audit *audit.Service }`, `NewService(q, a)`. Return `errs.*` for anything the user should read. Record every change a person makes (see "Audit"). Follow `backend/data.md`.
 4. **Wire.** Add `<feature>.NewService` to `container/wire.go` and a field to `Container`. Run `go generate ./container`.
 5. **IDL.** DTOs in `idl/api/<feature>.thrift`, methods in the service block of `idl/api.thrift` (or `papi.thrift` for admin-only). Run `./script/hz_update.sh`.
 6. **Handler.** Fill the stubs hz appended. Keep the signature and the `// @router` line.
@@ -53,6 +54,7 @@ The order matters: each step produces what the next one consumes. The `example` 
 - Lists take `page` and `page_size` and return `items` and `total`. The service clamps with `db.Page`.
 - int64 ids travel as JSON strings so JavaScript never rounds them: `1: i64 id (go.tag='json:"id,string"')` on every id field, request and response. This only replaces the json tag; query/form binding still works. The `,string` option does not apply to lists, so id lists are `list<string>` and parsed with `parseIDs` in the handler.
 - Avoid field names that are keywords in any Thrift target language (`from`, `to`, `type`...): use `updated_from`, `kind`.
+- Zero values that mean "none" (`ticket_id = 0`, `version = 0`, `created_at = 0`) are a contract the frontend must know: either make the field optional so absence is explicit, or document the sentinel next to the field so the page renders `—` / `未关联` instead of `#0`, `v0` or 1970.
 - Validation that needs no database goes in `api.vd` annotations (`api.vd="len($) > 0"`); everything else in the service.
 
 ## Handlers
@@ -96,6 +98,10 @@ func GetExample(ctx context.Context, c *app.RequestContext) {
 
 `biz/errs` is the whole vocabulary: `Invalid` 400, `Unauthorized` 401, `Forbidden` 403, `NotFound` 404, `Conflict` 409. The message is Chinese, written for the person using the UI (`示例不存在`, `请先停用再删除`), because the frontend shows it verbatim in toasts.
 
+- Say what is wrong in the user's terms, not the code's: `端口需为 1 到 65535 之间的整数`, not `port must be a safe integer`; `名称只能包含小写字母、数字和下划线`, not the regex. No field names, enum codes, HTTP statuses, or regexes in messages.
+- Errors from another system (an RPC, a provider SDK, a mail server) are never passed through as-is. Map the cases the user can act on to an `errs.*` with a Chinese message; log the rest and let `resp.Fail` answer `服务器内部错误`. `rpc error: code = ... desc = ...` on a toast means a missing mapping.
+- Failed binding answers `请求参数错误` and logs the binder's English detail; the frontend validates before sending, so users only see it when the client is wrong.
+
 ## Auth
 
 - Sessions are two HttpOnly cookies: access (1h) and refresh (30d), both HS256 JWTs with only the user id and a type. Login and refresh issue both; refresh slides the 30-day window.
@@ -103,8 +109,31 @@ func GetExample(ctx context.Context, c *app.RequestContext) {
 - Every request loads the user from the database, so disabling a user or changing a role applies on the next request. `mw.CurrentUser(c)` returns it.
 - Expired access + valid refresh answers 401 with `X-Token-Refresh-Needed: true`; the frontend refreshes once and retries. 401 without the header means no session; 403 always means "logged in but not allowed".
 - Roles rank `USER < MODERATOR < ADMIN`. `/papi` requires MODERATOR in its `rootMw`; tighten a single route with `mw.RequireRole(model.RoleAdmin)` in its `_xxxMw`. Object-level rules (only the owner may edit) belong in the service, checked against `mw.CurrentUser`.
+- Fields only some roles may see (notes, provider, region, internal addresses, cost) are emptied in `convert.go` for everyone else, based on `mw.CurrentUser`. Hiding them in the page is not access control: the response is visible in the browser's network panel.
 - Passwords are bcrypt. Login returns the same error for an unknown user and a wrong password. `/api/auth/login` has its own strict rate limit in `_loginMw`.
 - The first account: `PASSWORD=... ./output/run.sh -c local adduser admin ADMIN`.
+
+## Audit
+
+Every change a person makes through the UI leaves one `audit_logs` row, written by the service right after the change succeeds (`s.audit.Record(ctx, audit.Entry{...})`). The actor comes from the context (`biz/actor`, set by `mw.Auth`), so neither handlers nor services pass user ids around for it.
+
+- One action per verb, named `<target>.<verb>` (`example.update`), declared as `model.Audit*` and labeled in the frontend's `AUDIT_ACTION`. A new target type also gets `model.Target*`, `AUDIT_TARGET`, and its field names in `AUDIT_FIELDS`.
+- Updates store `Before` and `After` snapshots of the fields a person edits, as a small map keyed like the frontend's field labels, with related objects as names (`owner: "alice"`), not ids. No entry when nothing changed (saving an unchanged form, enabling something already enabled).
+- Batch and import write one entry with a Chinese `Summary` (`批量停用 3 项，跳过 2 项`), not one per row.
+- `TargetName` is the name at the time of the change, so the log still reads after a rename or delete.
+- `Record` logs and swallows its own failure: the change already happened, and answering with an error would tell the user it did not.
+- Who may read it: the full log is `/papi` (MODERATOR); an object's own history is an `/api` route next to the object (`ExampleHistory`), visible to whoever can see the object.
+
+## Runtime settings
+
+`biz/service/settings` is the reference for values an admin changes while the app runs: one typed `Settings` document, stored as append-only versions (`settings_versions`).
+
+- Services read `settings.Current(ctx)` where they use a value (the run timeout when a run starts), so a save applies to the next request without a restart. Each field's comment names the service that reads it; a field nobody reads does not exist.
+- A save carries the version it was edited from. If another version was saved since, the save answers 409 (`ErrConflict`); the unique index on `version` makes two concurrent saves from the same base fail the same way. Saving unchanged values returns the current version and writes nothing.
+- Version 0 means never saved: `Current` returns `Defaults()`. Stored versions are decoded over the defaults, so a field added later gets its default in old versions.
+- Restoring is a save of an old version's data with `restored_from` set, so history and the audit log say what happened and a restore can be undone.
+- Settings vs config: if the process needs it at startup, it bounds the server itself (body size, pools, listen address), or it is a secret, it is config. Everything an admin should be able to change from the UI is a setting.
+- Reading every request is one indexed query. Put a short cache in front of `Current` only when profiling says so, and invalidate it in `Save`.
 
 ## Config
 

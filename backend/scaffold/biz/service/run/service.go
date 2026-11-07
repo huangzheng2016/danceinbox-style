@@ -20,15 +20,13 @@ import (
 	"MODULE_NAME/biz/dal/db/query"
 	"MODULE_NAME/biz/errs"
 	"MODULE_NAME/biz/extension/cache"
+	"MODULE_NAME/biz/service/settings"
 
 	"gorm.io/gorm"
 )
 
-const (
-	// runs across the whole process; more would starve the agent backend
-	maxConcurrent = 4
-	runTimeout    = 5 * time.Minute
-)
+// runs across the whole process; more would starve the agent backend
+const maxConcurrent = 4
 
 type Event struct {
 	Seq  int64
@@ -37,19 +35,20 @@ type Event struct {
 }
 
 type Service struct {
-	q     *query.Query
-	cache cache.Cache
-	agent Agent
-	slots chan struct{}
+	q        *query.Query
+	cache    cache.Cache
+	agent    Agent
+	settings *settings.Service
+	slots    chan struct{}
 
 	mu      sync.Mutex
 	subs    map[int64]map[chan Event]struct{}
 	cancels map[int64]context.CancelFunc
 }
 
-func NewService(q *query.Query, c cache.Cache, agent Agent) (*Service, error) {
+func NewService(q *query.Query, c cache.Cache, agent Agent, st *settings.Service) (*Service, error) {
 	s := &Service{
-		q: q, cache: c, agent: agent,
+		q: q, cache: c, agent: agent, settings: st,
 		slots:   make(chan struct{}, maxConcurrent),
 		subs:    map[int64]map[chan Event]struct{}{},
 		cancels: map[int64]context.CancelFunc{},
@@ -74,6 +73,14 @@ func (s *Service) Start(ctx context.Context, exampleID, userID int64) (*model.Ru
 	}
 	if ex.Status != model.StatusEnabled {
 		return nil, errs.Conflict("示例已停用，不能运行")
+	}
+	// read per run, so a change in 系统设置 applies to the next run without a restart
+	cfg, err := s.settings.Current(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if cfg.Settings.RunsPaused {
+		return nil, errs.Conflict("管理员已暂停新的运行")
 	}
 
 	// The check for an active run and the insert must not interleave between requests.
@@ -105,7 +112,7 @@ func (s *Service) Start(ctx context.Context, exampleID, userID int64) (*model.Ru
 		<-s.slots
 		return nil, err
 	}
-	runCtx, cancel := context.WithTimeout(context.Background(), runTimeout)
+	runCtx, cancel := context.WithTimeout(context.Background(), time.Duration(cfg.Settings.RunTimeoutSeconds)*time.Second)
 	s.mu.Lock()
 	s.cancels[run.ID] = cancel
 	s.mu.Unlock()

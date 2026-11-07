@@ -9,8 +9,10 @@ package container
 import (
 	"MODULE_NAME/biz/extension/cache"
 	"MODULE_NAME/biz/service/attachment"
+	"MODULE_NAME/biz/service/audit"
 	"MODULE_NAME/biz/service/example"
 	"MODULE_NAME/biz/service/run"
+	"MODULE_NAME/biz/service/settings"
 	"MODULE_NAME/biz/service/user"
 )
 
@@ -20,6 +22,8 @@ type Container struct {
 	Example    *example.Service
 	Run        *run.Service
 	Attachment *attachment.Service
+	Audit      *audit.Service
+	Settings   *settings.Service
 }
 
 var Default *Container

@@ -1,6 +1,6 @@
 <script setup lang="ts" generic="V extends string">
 // 2 to 5 mutually exclusive options that should all stay visible: a status
-// filter, a view switch, a time granularity. More options: use <select>.
+// filter, a view switch, a time granularity. More options: use Select.
 const props = defineProps<{ options: readonly { value: V; label: string }[]; label?: string }>()
 const model = defineModel<V>({ required: true })
 

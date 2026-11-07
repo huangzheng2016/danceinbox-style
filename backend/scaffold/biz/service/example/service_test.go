@@ -6,14 +6,16 @@ import (
 	"testing"
 	"time"
 
+	"MODULE_NAME/biz/actor"
 	"MODULE_NAME/biz/dal/db/dbtest"
 	"MODULE_NAME/biz/dal/db/model"
 	"MODULE_NAME/biz/errs"
+	"MODULE_NAME/biz/service/audit"
 )
 
 func TestCreateValidatesAndRejectsDuplicates(t *testing.T) {
 	ctx := context.Background()
-	s := NewService(dbtest.New(t))
+	s := newService(t)
 	if _, err := s.Create(ctx, Input{Name: "a", Enabled: true}); err != nil {
 		t.Fatal(err)
 	}
@@ -37,7 +39,7 @@ func TestCreateValidatesAndRejectsDuplicates(t *testing.T) {
 
 func TestUpdateWritesZeroValuesAndUnchangedRows(t *testing.T) {
 	ctx := context.Background()
-	s := NewService(dbtest.New(t))
+	s := newService(t)
 	row, _ := s.Create(ctx, Input{Name: "a", Remark: "note", Enabled: true})
 
 	got, err := s.Update(ctx, row.ID, Input{Name: "a", Remark: "", Enabled: false})
@@ -57,7 +59,7 @@ func TestUpdateWritesZeroValuesAndUnchangedRows(t *testing.T) {
 
 func TestDeleteRequiresDisabled(t *testing.T) {
 	ctx := context.Background()
-	s := NewService(dbtest.New(t))
+	s := newService(t)
 	row, _ := s.Create(ctx, Input{Name: "a", Enabled: true})
 
 	if err := s.Delete(ctx, row.ID); codeOf(err) != errs.CodeConflict {
@@ -76,7 +78,7 @@ func TestDeleteRequiresDisabled(t *testing.T) {
 
 func TestListFiltersAndPages(t *testing.T) {
 	ctx := context.Background()
-	s := NewService(dbtest.New(t))
+	s := newService(t)
 	for _, n := range []string{"alpha", "beta", "al_pha", "gamma"} {
 		_, _ = s.Create(ctx, Input{Name: n, Enabled: n != "gamma"})
 	}
@@ -106,7 +108,7 @@ func TestListFiltersAndPages(t *testing.T) {
 func TestListSortsAndFiltersByTime(t *testing.T) {
 	ctx := context.Background()
 	q := dbtest.New(t)
-	s := NewService(q)
+	s := NewService(q, audit.NewService(q))
 	for i, n := range []string{"b", "c", "a"} {
 		row, _ := s.Create(ctx, Input{Name: n})
 		// spread updated_at so the range filter has something to cut
@@ -145,7 +147,7 @@ func TestListSortsAndFiltersByTime(t *testing.T) {
 
 func TestBatchReportsDoneAndSkipped(t *testing.T) {
 	ctx := context.Background()
-	s := NewService(dbtest.New(t))
+	s := newService(t)
 	a, _ := s.Create(ctx, Input{Name: "a", Enabled: true})
 	b, _ := s.Create(ctx, Input{Name: "b"})
 	ids := []int64{a.ID, b.ID, 999}
@@ -165,7 +167,7 @@ func TestBatchReportsDoneAndSkipped(t *testing.T) {
 func TestOwnerMustBeActiveUser(t *testing.T) {
 	ctx := context.Background()
 	q := dbtest.New(t)
-	s := NewService(q)
+	s := NewService(q, audit.NewService(q))
 	owner := &model.User{Username: "o", PasswordHash: "x", Active: true}
 	_ = q.User.WithContext(ctx).Create(owner)
 
@@ -179,7 +181,7 @@ func TestOwnerMustBeActiveUser(t *testing.T) {
 
 func TestImportReportsFailedRows(t *testing.T) {
 	ctx := context.Background()
-	s := NewService(dbtest.New(t))
+	s := newService(t)
 	_, _ = s.Create(ctx, Input{Name: "exists"})
 	created, failed, err := s.Import(ctx, []Input{
 		{Name: "a"},
@@ -208,7 +210,7 @@ func TestImportReportsFailedRows(t *testing.T) {
 func TestStatsFillsEveryDay(t *testing.T) {
 	ctx := context.Background()
 	q := dbtest.New(t)
-	s := NewService(q)
+	s := NewService(q, audit.NewService(q))
 	now := time.Date(2026, 10, 26, 15, 0, 0, 0, time.Local)
 	for _, at := range []time.Time{now, now.Add(-2 * time.Hour), now.AddDate(0, 0, -2), now.AddDate(0, 0, -30)} {
 		row, _ := s.Create(ctx, Input{Name: at.String()})
@@ -221,5 +223,43 @@ func TestStatsFillsEveryDay(t *testing.T) {
 	got := fmt.Sprint(days)
 	if want := "[{2026-10-24 1} {2026-10-25 0} {2026-10-26 2}]"; got != want {
 		t.Fatalf("got %s, want %s", got, want)
+	}
+}
+
+func newService(t *testing.T) *Service {
+	q := dbtest.New(t)
+	return NewService(q, audit.NewService(q))
+}
+
+func TestChangesAreAudited(t *testing.T) {
+	ctx := actor.With(context.Background(), 1)
+	s := newService(t)
+	row, _ := s.Create(ctx, Input{Name: "a", Enabled: true})
+	if _, err := s.Update(ctx, row.ID, Input{Name: "a", Enabled: true}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Update(ctx, row.ID, Input{Name: "b", Enabled: true}); err != nil {
+		t.Fatal(err)
+	}
+	_ = s.SetEnabled(ctx, row.ID, true)
+	_ = s.SetEnabled(ctx, row.ID, false)
+	if err := s.Delete(ctx, row.ID); err != nil {
+		t.Fatal(err)
+	}
+	logs, _, err := s.audit.List(context.Background(), audit.ListParams{TargetType: model.TargetExample, TargetID: row.ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for i := len(logs) - 1; i >= 0; i-- {
+		got = append(got, logs[i].Action)
+	}
+	// the unchanged save and the no-op enable leave no entry
+	want := []string{model.AuditExampleCreate, model.AuditExampleUpdate, model.AuditExampleDisable, model.AuditExampleDelete}
+	if fmt.Sprint(got) != fmt.Sprint(want) {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+	if logs[0].TargetName != "b" || logs[0].ActorID != 1 {
+		t.Fatalf("delete entry: %+v", logs[0])
 	}
 }

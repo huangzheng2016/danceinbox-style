@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { fmtRatio } from './format'
 
 // Progress of a task or usage of a quota. tone defaults to accent; pass 'auto' to
 // turn warning above 80% and danger above 95% (quotas, disk, rate limits).
@@ -28,7 +29,7 @@ const color = computed(() => {
       <div class="progress-fill" :style="{ width: `${ratio * 100}%`, background: color }" />
     </div>
     <span class="progress-text tabular"
-      ><slot>{{ Math.round(ratio * 100) }}%</slot></span
+      ><slot>{{ fmtRatio(ratio, 0) }}</slot></span
     >
   </div>
 </template>

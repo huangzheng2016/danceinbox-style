@@ -10,6 +10,7 @@ import StatusPill from '@/base/StatusPill.vue'
 import { applyEvent, emptyTranscript, isActive } from '@/base/agent'
 import { RUN_STATUS } from '@/base/labels'
 import { fmtMs } from '@/base/format'
+import { vTip } from '@/base/tooltip'
 import { fmtRelative, fmtTime } from '@/base/time'
 import { toast } from '@/base/toast'
 import { useFetch } from '@/base/useFetch'
@@ -99,13 +100,7 @@ const duration = (r: { created_at: number; ended_at: number }) =>
 <template>
   <div class="runs">
     <div class="toolbar">
-      <button
-        type="button"
-        class="primary"
-        :disabled="starting || !!startBlocked"
-        :title="startBlocked || undefined"
-        @click="start"
-      >
+      <button v-tip="startBlocked" type="button" class="primary" :disabled="starting || !!startBlocked" @click="start">
         <Icon name="play" />运行
       </button>
       <button
@@ -139,13 +134,13 @@ const duration = (r: { created_at: number; ended_at: number }) =>
             <span class="mono">#{{ r.id }}</span>
             <StatusPill :value="r.status" :map="RUN_STATUS" />
           </span>
-          <span class="text-muted text-sm" :title="fmtTime(r.created_at)">
+          <span v-tip="fmtTime(r.created_at)" class="text-muted text-sm">
             {{ fmtRelative(r.created_at) }} · {{ duration(r) }}
           </span>
         </button>
       </nav>
 
-      <section v-if="selected" class="card run-output">
+      <section v-if="selected" class="card" aria-label="运行输出">
         <div class="card-head">
           <h3>运行 #{{ selected.id }}</h3>
           <StatusPill :value="transcript.done ? transcript.status : selected.status" :map="RUN_STATUS" />

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { app } from './app'
+import { vTip } from './tooltip'
 
 const props = withDefaults(
   defineProps<{
@@ -157,13 +158,13 @@ onBeforeUnmount(() => {
 <template>
   <div
     ref="el"
+    v-tip="'拖动调整宽度，双击恢复默认'"
     class="split-resizer"
     role="separator"
     aria-orientation="vertical"
     :aria-label="label"
     :aria-valuenow="Math.round(pct)"
     tabindex="0"
-    title="拖动调整宽度，双击恢复默认"
     @pointerdown="onDown"
     @pointermove="onMove"
     @pointerup="onUp"

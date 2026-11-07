@@ -59,7 +59,7 @@ if [ "${E2E:-}" = 1 ] && [ "$PROFILE" = lite ]; then
     echo "=== e2e ==="
     (cd "$SKILL/scripts/e2e" && pnpm install --silent && pnpm exec playwright install chromium >/dev/null)
     mkdir -p shots
-    for suite in auth-and-crud list-and-detail runs-files-import; do
+    for suite in auth-and-crud list-and-detail runs-files-import settings-and-audit; do
         rm -rf data
         for u in "admin ADMIN" "alice USER" "albert USER" "bob USER"; do
             set -- $u

@@ -1,15 +1,22 @@
 <script setup lang="ts">
-// Reference overview page: stat tiles, charts, then one card per block.
+// Reference overview page: stat tiles, charts, then one card per block. Every figure appears
+// once; links into detail pages carry `from` so the header's back link returns here.
 import { computed } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRoute } from 'vue-router'
+import { linkFrom } from '@/base/backLink'
+import Alert from '@/base/Alert.vue'
 import Chart from '@/base/Chart.vue'
 import HoverCard from '@/base/HoverCard.vue'
 import Icon from '@/base/Icon.vue'
 import Loading from '@/base/Loading.vue'
+import MarkdownText from '@/base/MarkdownText.vue'
 import ProgressBar from '@/base/ProgressBar.vue'
 import { fmtRelative } from '@/base/time'
 import { useFetch } from '@/base/useFetch'
 import { exampleStats, listExamples } from '@/api/example'
+import { getPublicSettings } from '@/api/settings'
+
+const route = useRoute()
 
 const base = { q: '', status: '', range: '', sort: '', page: 1, size: 20 }
 
@@ -25,6 +32,8 @@ const summary = useFetch(
   },
   { immediate: true },
 )
+// the announcement admins set in 系统设置; nothing renders while it is empty
+const site = useFetch(getPublicSettings, { immediate: true })
 const stats = useFetch((signal) => exampleStats(14, signal), { immediate: true })
 
 const trend = computed(() => {
@@ -63,8 +72,11 @@ const split = computed(() => {
 
 <template>
   <div class="page">
+    <Alert v-if="site.data.value?.announcement" title="公告">
+      <MarkdownText :source="site.data.value.announcement" />
+    </Alert>
     <Loading v-if="!summary.loaded.value" />
-    <p v-else-if="summary.error.value" class="text-danger">加载失败:{{ summary.error.value }}</p>
+    <p v-else-if="summary.error.value" class="text-danger">加载失败：{{ summary.error.value }}</p>
     <template v-else-if="summary.data.value">
       <div class="stats">
         <div class="card">
@@ -108,10 +120,7 @@ const split = computed(() => {
 
       <section class="card">
         <div class="card-head">
-          <div>
-            <h3>最近更新</h3>
-            <p class="card-desc">最近修改的示例</p>
-          </div>
+          <h3>最近更新</h3>
           <RouterLink to="/examples" class="btn ghost btn-sm">全部</RouterLink>
         </div>
         <p v-if="summary.data.value.recent.length === 0" class="text-muted">暂无记录</p>
@@ -119,7 +128,7 @@ const split = computed(() => {
           <template v-for="r in summary.data.value.recent" :key="r.id">
             <dt>{{ fmtRelative(r.updated_at) }}</dt>
             <dd>
-              <RouterLink :to="`/examples/${r.id}`">{{ r.name }}</RouterLink>
+              <RouterLink :to="linkFrom(`/examples/${r.id}`, route)">{{ r.name }}</RouterLink>
             </dd>
           </template>
         </dl>

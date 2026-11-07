@@ -3,6 +3,8 @@ include "api/auth.thrift"
 include "api/example.thrift"
 include "api/run.thrift"
 include "api/attachment.thrift"
+include "api/audit.thrift"
+include "api/settings.thrift"
 
 namespace go api
 
@@ -24,6 +26,13 @@ service ExampleService {
     example.BatchExamplesResp BatchExamples(1: example.BatchExamplesReq req) (api.post="/api/example/batch")
     example.ImportExamplesResp ImportExamples(1: example.ImportExamplesReq req) (api.post="/api/example/import")
     example.ExampleStatsResp ExampleStats(1: example.ExampleStatsReq req) (api.get="/api/example/stats")
+    // the example's audit entries, for its 记录 tab; visible to anyone who can see the example
+    audit.ListAuditLogsResp ExampleHistory(1: audit.ExampleHistoryReq req) (api.get="/api/example/history")
+}
+
+service PublicSettingsService {
+    // the settings every signed-in page may use (the announcement)
+    settings.PublicSettingsResp PublicSettings(1: base.EmptyReq req) (api.get="/api/settings/public")
 }
 
 service RunService {

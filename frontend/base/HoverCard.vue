@@ -3,7 +3,7 @@ import { onBeforeUnmount, ref } from 'vue'
 import Popover from './Popover.vue'
 
 // Extra detail on hover: a metric's definition, a user's profile, a truncated
-// value's full text with context. One-line hints use title instead. Opens after
+// value's full text with context. One-line hints use v-tip instead. Opens after
 // a short hover, at once on keyboard focus, on tap for touch; stays open while
 // the pointer is over the card. Never put the only copy of important
 // information here: it must also be reachable without hovering.

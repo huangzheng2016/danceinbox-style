@@ -10,8 +10,9 @@ const props = withDefaults(
   defineProps<{
     open: boolean
     anchor: HTMLElement | null
-    // 'anchor' matches the anchor's width (selects); a number fixes it (menus)
-    width?: number | 'anchor'
+    // 'anchor' matches the anchor's width (comboboxes); 'min-anchor' is at least that wide
+    // and grows to its content (selects in toolbars); a number fixes it (menus)
+    width?: number | 'anchor' | 'min-anchor'
     align?: 'start' | 'end'
     // preferred side; flips when there is no room
     side?: 'bottom' | 'top'
@@ -29,14 +30,21 @@ const MARGIN = 8
 function place() {
   const a = props.anchor?.getBoundingClientRect()
   if (!a) return
-  const width = props.width === 'anchor' ? a.width : props.width
+  const fluid = props.width === 'min-anchor'
+  const width = fluid
+    ? Math.max(a.width, panel.value?.offsetWidth ?? 0)
+    : props.width === 'anchor'
+      ? a.width
+      : props.width
   const height = panel.value?.offsetHeight ?? 0
   const fitsBelow = a.bottom + GAP + height <= window.innerHeight - MARGIN
   const fitsAbove = a.top - GAP - height >= MARGIN
   const below = props.side === 'bottom' ? fitsBelow || !fitsAbove : !fitsAbove && fitsBelow
   const left = props.align === 'end' ? a.right - width : a.left
   style.value = {
-    width: `${width}px`,
+    ...(fluid
+      ? { minWidth: `${a.width}px`, maxWidth: `${window.innerWidth - 2 * MARGIN}px` }
+      : { width: `${width}px` }),
     left: `${Math.max(MARGIN, Math.min(left, window.innerWidth - width - MARGIN))}px`,
     top: `${below ? a.bottom + GAP : a.top - GAP - height}px`,
     maxHeight: `${Math.max(120, below ? window.innerHeight - a.bottom - GAP - MARGIN : a.top - GAP - MARGIN)}px`,

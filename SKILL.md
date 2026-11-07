@@ -5,7 +5,7 @@ description: "Use when creating a new Hertz (Go) + Vue 3 web app or admin consol
 
 # danceinbox-style
 
-A full-stack scaffold that is real, runnable code: copy it, rename it, and it builds, serves, logs in, and manages an example resource end to end, including streamed agent runs with tool calls, file attachments, a CSV import wizard, and charts. New features are built by copying the example feature and the reference pages, so every endpoint and every page in a project looks and behaves the same.
+A full-stack scaffold that is real, runnable code: copy it, rename it, and it builds, serves, logs in, and manages an example resource end to end, including streamed agent runs with tool calls, file attachments, a CSV import wizard, charts, an audit log of every change, and versioned runtime settings with conflict detection. New features are built by copying the example feature and the reference pages, so every endpoint and every page in a project looks and behaves the same.
 
 Prefer copying over composing from rules. When the skill and your instinct disagree on how something looks or works, the reference code wins; if the reference code is wrong, fix it here in the skill so every project gets the fix.
 
@@ -22,10 +22,11 @@ Prefer copying over composing from rules. When the skill and your instinct disag
 | `frontend/base/` | Shared components and composables, including `LUCIDE-LICENSE.txt`, copied verbatim to `frontend/src/base/` |
 | `frontend/styles/` | `tokens.css` + `base.css`, copied verbatim to `frontend/src/styles/` |
 | `frontend/assets/fonts/` | Self-hosted fonts and licenses, copied to `frontend/public/fonts/` |
-| `backend/workflow.md` | Layout, adding a feature, IDL and handler conventions, auth, testing, version pins |
+| `backend/workflow.md` | Layout, adding a feature, IDL and handler conventions, errors, auth, audit, runtime settings, testing, version pins |
 | `backend/data.md` | Query, write, transaction, delete, migration, and cache rules |
 | `backend/deploy.md` | Local run, versions, release, first deploy, lite profile, CI |
-| `frontend/design-system.md` | Page patterns, which control to use, interaction rules, copy, tokens, review checklist |
+| `frontend/design-system.md` | Page patterns, which control to use, interaction rules, copy and its common mistakes, saying less, tokens, review checklist |
+| `scripts/verify.sh`, `scripts/e2e/` | Maintainers only: builds a project from this file's commands and drives it in a browser; run after every change to the skill |
 
 ## New project
 
@@ -84,7 +85,7 @@ PASSWORD=<pw> ./output/run.sh adduser admin ADMIN
 
 Every step must succeed before the next. If a tool fails, fix the tool or the input; never hand-write generated code to get past it. The version pins exist because those exact breakages happen (see `backend/workflow.md`).
 
-Commit as `chore: scaffold`. Keep the `example` feature until the first real feature has been built from it, then delete it everywhere: model, service, IDL, handler, `convert.go` entries, frontend API, pages, route, nav, labels.
+Commit as `chore: scaffold`. Keep the `example` feature until the first real feature has been built from it, then delete it everywhere: model, service, IDL, handler, `convert.go` entries, frontend API, pages, route, nav, labels (including its `AUDIT_*` entries and the example badge in `loadNavBadges`). Audit and settings are not examples: keep them, and replace the settings fields with the project's own.
 
 ## Working in a generated project
 
@@ -92,7 +93,7 @@ The project's `CLAUDE.md` holds the day-to-day rules. Deeper references:
 
 - New endpoint or feature: `backend/workflow.md` "Adding a feature".
 - Anything touching queries, writes, or the cache: `backend/data.md`.
-- New page: pick the reference page in `frontend/design-system.md` "Page patterns", copy it, then adapt.
+- New page: pick the reference page in `frontend/design-system.md` "Page patterns", copy it, then adapt. Before calling it done, run its "Review checklist"; the copy table in "Write for the person at the screen" lists the mistakes generated projects make most.
 - A shared component behaves wrong or is missing: fix or add it in `$SKILL/frontend/base/`, then re-copy `base/` into the project. Never fork a base component inside a project.
 
 ## Rules code cannot enforce
@@ -104,12 +105,19 @@ These are the decisions that keep projects consistent. Everything else is in the
 - One error vocabulary (`biz/errs`) and one envelope (`resp.Bind` / `resp.Fail`); messages are Chinese and meant for the end user.
 - Typed queries only; state changes are compare-and-set in `Where`.
 - Default-deny auth: sessions are required everywhere except `publicRoutes`.
+- Every change a person makes is audited by the service that makes it; runtime settings are read per use through `settings.Current` and saved as versions that never overwrite a newer one.
 - `go test ./...` runs with no external services; every bug fix starts with a failing test.
+- Fields some roles may not see are emptied in `convert.go`; hiding them in a page is not access control.
 
 **Frontend**
 - `base/` and `styles/` are used as-is. No component library, no CSS framework, no page-level restyling of shared classes or native controls.
 - Pages are built from the reference pages; the shell owns the title.
 - One primary button per area, destructive actions behind a confirm, feedback after every mutation, state in the URL.
+- Dropdowns are `Select` / `Combobox`, never native `<select>`; hover hints are `v-tip`, never `title`. Disabled actions say why on hover.
+- Copy is written for the person at the screen, never lifted from specs, schemas or code: no milestone codes, field names, enum codes, protocol commands, English tails in brackets, disclaimers, or explanations of how the system works. Full-width Chinese punctuation everywhere.
+- Say each thing once and hide what is empty: no stat that repeats a count below it, no subtitle that restates its title, no section with zero items. Fold raw material, never conclusions.
+- No raw values on screen: enums through `labels.ts`, units through `format.ts`, sentinels (`0` id, `-1` limit, `0` time) as `—` / `不限` / `未关联`. Users pick related objects by name, never type ids.
+- Every link is clicked once before it ships: the filter it sends works on the target, and back returns where it came from (`linkFrom`).
 
 **Code**
 - Comments explain why and only where the code cannot. No comments that point at docs or describe history, no commented-out code, no "reserved for future" hooks or options, no compatibility shims in new code.

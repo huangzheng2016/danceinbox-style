@@ -11,6 +11,8 @@ Hertz (Go) + Vue 3 全栈项目的 AI Agent Skill(入口 `SKILL.md`)。它不是
 - 示例功能:列表/详情/新建/编辑/启停/删除/批量/导入/统计,含状态约束与幂等删除
 - AI 流式运行:SSE 走 IDL,事件落库带序号,断线按 Last-Event-ID 续传;工具调用事件;单对象单任务 + 全局并发上限;停止;进程重启后收尾
 - 文件上传:流式落盘 + SHA-256,随机存储名,扩展名白名单,下载强制 attachment
+- 审计日志:服务层在每次变更成功后记录操作人(来自请求上下文)、对象、修改前后快照;批量/导入只记一条摘要
+- 运行时设置:类型化设置文档按版本追加保存,基于版本号的冲突检测(唯一索引兜底),历史对比与恢复;各服务按需读取,保存即生效
 - 不依赖外部服务即可运行的测试 (`go test ./...`)
 - `build.sh`、`release.sh`、Dockerfile、Compose、Caddy、GitHub Actions CI
 - 轻量 profile (`backend/scaffold-lite/`):SQLite + 进程内缓存的单二进制部署
@@ -18,15 +20,17 @@ Hertz (Go) + Vue 3 全栈项目的 AI Agent Skill(入口 `SKILL.md`)。它不是
 **前端** (`frontend/`)
 - 无组件库:`styles/` 全局样式 + `base/` 共享组件
   - 结构:应用壳(面包屑、用户菜单)、对话框、确认、浮层 (Popover)、操作菜单、标签页、分栏
-  - 输入:开关、分段选择、可搜索/远程/多选下拉 (Combobox)、时间范围筛选
-  - 展示:状态标签、提示条 (Alert)、悬浮卡片 (HoverCard)、可复制文本、代码/JSON 块、Markdown、图表 (ECharts)、进度条、表格状态、空状态、分页、排序表头
-  - 编辑:Markdown 编辑/预览、代码编辑器、JSON 字段
-  - AI 与任务:运行记录 (AgentTranscript)、工具调用卡片 (ToolCallCard)、文件上传 (FileUpload)、步骤条 (Steps)
+  - 输入:开关、分段选择、下拉选择 (Select,键盘/首字母跳转/禁用原因)、可搜索/远程/多选下拉 (Combobox)、时间范围筛选
+  - 展示:状态标签、提示条 (Alert)、全局悬停提示 (`v-tip`,图标按钮与截断文本自动提示,禁用按钮也能显示原因)、版本差异 (DiffView)、悬浮卡片 (HoverCard)、可复制文本、代码/JSON 块、Markdown、图表 (ECharts)、进度条、表格状态、空状态、分页、排序表头
+  - 编辑:Markdown 编辑/预览、代码编辑器、JSON 字段、带单位的时长/容量输入 (UnitInput)
+  - AI 与任务:运行记录 (AgentTranscript)、工具调用卡片 (ToolCallCard)、文件上传 (FileUpload)、步骤条 (Steps)、时间线 (Timeline)
 - 组合函数:`useUpload`(进度/取消/重试)、`usePolling`(完成后再排程、隐藏暂停、退避)、`useWizard`、`readEventStream`(SSE 解析与续传)、`useList`(筛选/排序/分页/选中全部进 URL,防抖、取消、过期响应保护)、`useFetch`、`useRouteQuery`、`useSelection`(批量)、`useDirtyGuard`(未保存提醒)、`useFormValidation`、`usePageTitle`
-- 参考页面:列表+详情+批量 (`ExampleList.vue`)、完整详情页 (`ExampleDetail.vue`,含运行/附件标签页)、批量导入向导 (`ExampleImport.vue`)、表单对话框、带图表的概览、登录、404
+- 参考页面:列表+详情+批量 (`ExampleList.vue`)、完整详情页 (`ExampleDetail.vue`,含运行/附件/记录标签页)、批量导入向导 (`ExampleImport.vue`)、系统设置页 (`Settings.vue`,分组表单、底部保存栏、冲突差异对话框、只读模式、历史版本与恢复)、审计日志 (`AuditList.vue`,只读列表+详情、筛选胶囊)、表单对话框、带图表和公告的概览、登录、404
+- 导航:按角色隐藏入口、待办计数角标(`loadNavBadges`)
 - 401 自动刷新会话、会话失效跳转登录并回跳、后端错误信息进入 Toast
 - 亮/暗主题(首屏前生效,无闪烁)、窄屏单栏、键盘可用
-- Vitest 行为测试 + ESLint + Prettier + vue-tsc,统一由 `pnpm check` 执行
+- 显示辅助:`format.ts` 统一带单位格式化(`fmtMs`/`fmtBytes`/`fmtRatio`)、不限额度(`fmtLimit`)、枚举文案与筛选选项(`fmtLabel`/`labelOptions`);`backLink.ts` 跨页跳转带 `from`,顶栏返回回到来源页
+- Vitest 行为测试 + ESLint + Prettier + vue-tsc + `scripts/lint-ui.mjs`(未定义的 class、模板里的 JSON.stringify、`{{ x }} ms` 单位拼接、`中文（english）` 括号尾巴、中文半角标点),统一由 `pnpm check` 执行
 
 ## 目录
 
@@ -43,7 +47,7 @@ frontend/
   base/                    共享组件与组合函数,原样复制到 src/base/
   styles/                  tokens.css + base.css
   assets/fonts/            自托管字体及 OFL 许可证
-  design-system.md         页面模式、控件选择、交互规则、文案、Token、检查清单
+  design-system.md         页面模式、控件选择、交互规则、文案(含常见错误对照)、做减法、Token、检查清单
 scripts/verify.sh          按 SKILL.md 原样生成一个项目并构建、测试、启动
 scripts/e2e/               浏览器端到端用例(E2E=1 时由 verify.sh 运行)
 ```
