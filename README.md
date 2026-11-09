@@ -48,7 +48,7 @@
 
 **其他**：401 自动刷新会话、会话失效后跳转登录并回跳、亮 / 暗主题首屏无闪烁、窄屏单栏、键盘可用。
 
-**质量检查**：`pnpm check` 依次运行 Prettier、ESLint、`scripts/lint-ui.mjs`、Vitest、vue-tsc 和构建。其中 `lint-ui` 检查未定义的 class、模板里的 `JSON.stringify`、数值后拼接单位、`中文（english）` 括号尾巴、中文半角标点、原生 `<select>` 和 `title` 提示。
+**质量检查**：`pnpm check` 依次运行 Prettier、ESLint、`scripts/lint-ui.mjs`、Vitest、vue-tsc 和构建。其中 `lint-ui` 检查未定义的 class、模板里的 `JSON.stringify`、数值后拼接单位、`中文（english）` 括号尾巴、中文半角标点、原生 `<select>` 和 `title` 提示；在 `base/`、`styles/` 之外还拦截写死的颜色、原始 `z-index`、页面改写公共 class、`toLocale*`/`toFixed` 格式化和本地复制的 `labels.ts` 映射。
 
 ## 目录
 

@@ -250,7 +250,7 @@ const failedLines = computed(() =>
       </template>
     </section>
 
-    <div class="form-actions wizard-foot">
+    <div class="form-actions">
       <template v-if="!state.result">
         <RouterLink to="/examples" class="btn ghost">取消</RouterLink>
         <span class="spacer" />
@@ -289,8 +289,5 @@ const failedLines = computed(() =>
 }
 .row-bad td {
   background: var(--danger-soft);
-}
-.wizard-foot .spacer {
-  flex: 1;
 }
 </style>

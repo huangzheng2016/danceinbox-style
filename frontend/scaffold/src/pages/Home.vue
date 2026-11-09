@@ -143,14 +143,6 @@ const split = computed(() => {
   grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
   gap: var(--space-3);
 }
-.stat-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-}
-.stat-label button {
-  margin: -6px 0;
-}
 @media (max-width: 960px) {
   .charts {
     grid-template-columns: minmax(0, 1fr);

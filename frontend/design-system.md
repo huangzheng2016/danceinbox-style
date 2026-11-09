@@ -276,7 +276,7 @@ To rebrand, edit only the "brand" block at the top of `tokens.css` (accent color
 
 ## Page-local styles
 
-Every class in a template is defined in `styles/` or in that component's `<style>`. A class that exists nowhere (`.stat` instead of `.stats > .card`, `.active` where the stylesheet says `.on`, `.kv-group`) fails silently: text runs together, a toggle never shows as on. `pnpm check` runs `scripts/lint-ui.mjs`, which reports undefined classes along with the copy mistakes it can detect.
+Every class in a template is defined in `styles/` or in that component's `<style>`. A class that exists nowhere (`.stat` instead of `.stats > .card`, `.active` where the stylesheet says `.on`, `.kv-group`) fails silently: text runs together, a toggle never shows as on. `pnpm check` runs `scripts/lint-ui.mjs`, which reports undefined classes along with the copy mistakes it can detect. Outside the verbatim `base/` and `styles/` it also rejects literal colors, raw `z-index`, page selectors that restyle a shared class, `toLocale*`/`toFixed` formatting, `MAP[x]?.text` lookups and local copies of a `labels.ts` map; mark a deliberate exception with `lint-ui-ignore` on that line.
 
 A page's `<style scoped>` may lay out its own content (grid areas, a chart's height). It may not restyle shared classes or native controls, set colors or radii outside tokens, or nudge one control's padding or line-height to make it align. If something shared looks wrong, fix `base.css` or the component in the skill.
 
