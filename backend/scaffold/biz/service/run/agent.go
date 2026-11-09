@@ -18,6 +18,8 @@ type Agent interface {
 }
 
 type Output interface {
+	// Think appends a chunk of reasoning / intermediate thought.
+	Think(delta string)
 	// Text appends a chunk of the Markdown answer.
 	Text(delta string)
 	// Tool records a tool call, runs fn, and records its result or error.
@@ -31,6 +33,10 @@ type emitter struct {
 	mu    sync.Mutex
 	seq   int64
 	tools int
+}
+
+func (e *emitter) Think(delta string) {
+	e.emit("think", map[string]string{"delta": delta})
 }
 
 func (e *emitter) Text(delta string) {

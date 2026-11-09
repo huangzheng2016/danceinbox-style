@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
 import { flushPromises, mount } from '@vue/test-utils'
 import { createSseParser, readEventStream } from '@/base/sse'
-import { applyEvent, emptyTranscript } from '@/base/agent'
+import { applyEvent, emptyTranscript, groupBlocks, healStreamingMarkdown, toolSummary } from '@/base/agent'
 import { parseCsv } from '@/base/csv'
 import { highlight, jsonObjectError } from '@/base/highlight'
 import { fmtBytes, fmtMs } from '@/base/format'
@@ -100,6 +100,41 @@ describe('agent transcript', () => {
     let t = applyEvent(emptyTranscript(), 'tool_call', { id: 't1', name: 'x', args: {} }, 1)
     t = applyEvent(t, 'done', { status: 'canceled' }, 2)
     expect(t.blocks[0]).toMatchObject({ status: 'failed', error: '未完成' })
+  })
+
+  it('folds thinking chunks, routes subagent events by tool_call_id, and groups intermediate process steps', () => {
+    let t = emptyTranscript()
+    t = applyEvent(t, 'think', { delta: '先分析' }, 1)
+    t = applyEvent(t, 'reasoning', { text: '上下文' }, 2)
+    t = applyEvent(t, 'tool_call', { id: 'duty1', name: 'duty_qa', args: { command: 'rg -n error logs/' } }, 3)
+    t = applyEvent(t, 'think', { delta: '子任务思考', tool_call_id: 'duty1' }, 4)
+    t = applyEvent(t, 'tool_call', { id: 'sub1', name: 'read_file', args: { path: 'a.log' }, tool_call_id: 'duty1' }, 5)
+    t = applyEvent(t, 'tool_result', { id: 'sub1', output: 'ok', tool_call_id: 'duty1' }, 6)
+    t = applyEvent(t, 'tool_result', { id: 'duty1', output: 'done', duration_ms: 45 }, 7)
+    t = applyEvent(t, 'text', { delta: '结论正常' }, 8)
+
+    expect(toolSummary({ command: 'rg -n error logs/', extra: 1 })).toBe('rg -n error logs/')
+    expect(t.blocks).toHaveLength(3)
+    expect(t.blocks[0]).toEqual({ kind: 'think', text: '先分析上下文' })
+    expect(t.blocks[1]).toMatchObject({
+      kind: 'tool',
+      id: 'duty1',
+      status: 'succeeded',
+      subBlocks: [
+        { kind: 'think', text: '子任务思考' },
+        { kind: 'tool', id: 'sub1', name: 'read_file', status: 'succeeded', output: 'ok' },
+      ],
+    })
+
+    const grouped = groupBlocks(t.blocks, true)
+    expect(grouped).toHaveLength(2)
+    expect(grouped[0]).toMatchObject({ kind: 'process', thinking: 1, tools: 1, running: 0, failed: 0 })
+    expect(grouped[1]).toEqual({ kind: 'text', text: '结论正常' })
+  })
+
+  it('heals unclosed code fences while streaming Markdown', () => {
+    expect(healStreamingMarkdown('示例：\n```go\nfmt.Println(1)')).toBe('示例：\n```go\nfmt.Println(1)\n```')
+    expect(healStreamingMarkdown('```go\nfmt.Println(1)\n```')).toBe('```go\nfmt.Println(1)\n```')
   })
 })
 

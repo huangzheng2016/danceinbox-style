@@ -1,20 +1,23 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import type { ToolBlock } from './agent'
+import { toolSummary, type ToolBlock } from './agent'
 import CodeBlock from './CodeBlock.vue'
 import Icon from './Icon.vue'
-import { fmtMs } from './format'
+import MarkdownText from './MarkdownText.vue'
+import { fmtMs, fmtNumber } from './format'
 
 // One tool call in an agent transcript. Collapsed to a single line by default;
-// a failure opens itself so the error is never hidden.
+// a failure opens itself so the error is never hidden, and if manually closed
+// keeps its first error line visible.
 const props = defineProps<{ tool: ToolBlock }>()
 
 const toggled = ref<boolean | null>(null)
 const open = computed(() => toggled.value ?? props.tool.status === 'failed')
 
-const summary = computed(() => {
-  const s = JSON.stringify(props.tool.args ?? {})
-  return s.length > 80 ? `${s.slice(0, 80)}…` : s
+const summary = computed(() => toolSummary(props.tool.args))
+const errorHeadline = computed(() => {
+  if (open.value || props.tool.status !== 'failed' || !props.tool.error) return ''
+  return props.tool.error.trim().split(/\r?\n/, 1)[0] ?? ''
 })
 </script>
 
@@ -25,12 +28,29 @@ const summary = computed(() => {
       <Icon v-else :name="tool.status === 'succeeded' ? 'check-circle' : 'x-circle'" :size="14" class="tool-icon" />
       <span class="tool-name mono">{{ tool.name }}</span>
       <span class="tool-args mono">{{ summary }}</span>
+      <span v-if="tool.subBlocks?.length" class="tool-sub-badge"
+        >子任务 · {{ fmtNumber(tool.subBlocks.length) }} 步</span
+      >
       <span v-if="tool.durationMs != null" class="tool-time tabular">{{ fmtMs(tool.durationMs) }}</span>
       <Icon name="chevron-right" :size="14" class="tool-chevron" />
     </button>
+    <p v-if="errorHeadline" class="tool-err-line text-danger truncate">{{ errorHeadline }}</p>
     <div v-if="open" class="tool-body">
       <div class="field-label">参数</div>
       <CodeBlock :value="tool.args ?? {}" :max-lines="12" />
+      <template v-if="tool.subBlocks?.length">
+        <div class="field-label">子任务过程</div>
+        <div class="tool-sub-list">
+          <template v-for="(sb, idx) in tool.subBlocks" :key="idx">
+            <div v-if="sb.kind === 'think'" class="tool-sub-think text-sm">
+              <span class="field-label">思考</span>
+              <MarkdownText :source="sb.text" />
+            </div>
+            <MarkdownText v-else-if="sb.kind === 'text'" :source="sb.text" />
+            <ToolCallCard v-else-if="sb.kind === 'tool'" :tool="sb" />
+          </template>
+        </div>
+      </template>
       <template v-if="tool.status === 'failed'">
         <div class="field-label">错误</div>
         <p class="text-danger">{{ tool.error }}</p>
@@ -76,6 +96,10 @@ const summary = computed(() => {
   color: var(--text-muted);
   text-align: left;
 }
+.tool-sub-badge {
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+}
 .tool-time {
   color: var(--text-muted);
   font-size: var(--text-sm);
@@ -107,11 +131,25 @@ const summary = computed(() => {
     transform: rotate(360deg);
   }
 }
+.tool-err-line {
+  padding: 0 10px 6px 32px;
+  font-size: var(--text-xs);
+}
 .tool-body {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
   padding: var(--space-2) 10px 10px;
   border-top: 1px solid var(--border);
+}
+.tool-sub-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-left: var(--space-2);
+  border-left: 2px solid var(--border);
+}
+.tool-sub-think {
+  color: var(--text-secondary);
 }
 </style>

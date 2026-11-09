@@ -86,7 +86,9 @@ func GetExample(ctx context.Context, c *app.RequestContext) {
 - The handler subscribes before writing anything, so errors before the stream starts are normal JSON errors; then `writeEvents` (`biz/handler/api/stream.go`) sends the replay, follows live events, heartbeats every 15 s, and ends after `done`.
 - Producers store each event before publishing it (`biz/service/run`). Replays come from the store, so `Last-Event-ID` resumes exactly, and a run whose process died still ends with a `done` event.
 - Expensive operations started by users have a per-target guard (one active run per example) and a global cap (4 concurrent runs), both reported as `errs.Conflict` with the reason. Runs execute with a detached context and their own timeout; `Cancel` stops them.
-- `run.Agent` is the seam for a real model: stream tokens through `out.Text`, wrap each tool in `out.Tool`. `DemoAgent` keeps the path testable without one.
+- `run.Agent` is the seam for a real model: stream reasoning through `out.Think`, answer tokens through `out.Text`, wrap each tool in `out.Tool`. `DemoAgent` keeps the path testable without one.
+- For multi-turn Eino ADK orchestration (`adk.ChatModelAgent`, `patchtoolcalls`/`reduction`/`summarization`/`pairGuard` middlewares, rolling session compaction, `CheckPointStore` HITL interrupts, subagent event attribution, batched journal streams, and Docker or Kimi CLI/KAP container sandboxes with S3 workspace archives using `github.com/huangzheng2016/klient` instead of re-implementing KAP REST/WebSocket clients or event mappers), see `backend/agent.md`.
+- For packaging the backend and frontend as a Wails v3 desktop client alongside the web server, see `backend/wails3.md`.
 
 ## Uploads
 

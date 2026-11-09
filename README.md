@@ -21,7 +21,8 @@
 | 接口与错误 | Thrift IDL 先行；统一错误模型和响应格式，中文错误信息直接展示给用户 |
 | 认证与权限 | access 1 小时 + refresh 30 天的双 cookie；公开路由显式登记；USER / MODERATOR / ADMIN 三级角色 |
 | 示例功能 | 列表、详情、新建、编辑、启停、删除、批量操作、导入、统计；状态约束，删除可重试 |
-| AI 流式运行 | SSE 输出，事件带序号落库，断线按 `Last-Event-ID` 续传；支持工具调用、停止、并发上限、重启后收尾 |
+| AI 流式运行 | SSE 输出，事件带序号落库，断线按 `Last-Event-ID` 续传；支持思考折叠、工具调用、子任务时间线、停止、并发上限、重启后收尾；含 Eino ADK 与 Kimi CLI / KAP 沙箱容器扩展规范（直接复用 `github.com/huangzheng2016/klient` 客户端与事件映射，详见 `backend/agent.md`） |
+| 桌面端（可选） | Wails v3 + Web 双模同源架构、单一 `Service.Call` IPC 总线、三种流通道与桌面安全守卫（`backend/wails3.md`） |
 | 文件上传 | 流式落盘并计算 SHA-256，随机存储名，扩展名白名单，下载强制为附件 |
 | 审计日志 | 每次变更成功后记录操作人、对象和修改前后的值；批量和导入只记一条摘要 |
 | 运行时设置 | 设置按版本保存，保存时检测冲突，可对比、可恢复；各服务每次使用时读取，保存即生效 |
@@ -38,7 +39,7 @@
 | 输入 | 开关、分段选择、下拉选择 `Select`、可搜索 / 远程 / 多选 `Combobox`、时间范围、带单位的时长和容量 `UnitInput` |
 | 展示 | 状态标签、提示条、全局悬停提示 `v-tip`、版本差异 `DiffView`、时间线 `Timeline`、悬浮卡片、代码和 JSON 块、Markdown、图表、进度条、空状态、分页、排序表头 |
 | 编辑 | Markdown 编辑 / 预览、代码编辑器、JSON 字段 |
-| AI 与任务 | 运行记录、工具调用卡片、文件上传、步骤条 |
+| AI 与任务 | 运行记录、思考折叠、执行过程聚合折叠、工具调用卡片（含子任务时间线）、流式代码块闭合、文件上传、步骤条（扩展规范见 `frontend/agent-ui.md`） |
 
 **组合函数**：`useList`（筛选、排序、分页、选中状态全部进 URL）、`useFetch`、`usePolling`、`useUpload`、`useWizard`、`useRouteQuery`、`useSelection`、`useDirtyGuard`、`useFormValidation`、`readEventStream` 等。
 
@@ -60,12 +61,15 @@ backend/
   workflow.md              目录结构、新增功能流程、接口约定、错误、认证、审计、运行时设置、测试、版本钉选
   data.md                  查询、写入、事务、删除、迁移、缓存规则
   deploy.md                本地运行、发布、首次部署、轻量版、CI
+  agent.md                 专项能力：Eino ADK 编排、4 层中间件、会话压缩、HITL 恢复、Subagent、Trace 存储与 Kimi CLI/KAP 沙箱（github.com/huangzheng2016/klient）
+  wails3.md                专项能力：Wails v3 桌面端与 Web 双模架构、IPC 通道、安全守卫、窗口持久化与绑定门禁
 frontend/
   scaffold/                项目 frontend/ 模板：配置、API、路由、参考页面、测试、lint-ui
   base/                    共享组件和组合函数，原样复制到 src/base/
   styles/                  tokens.css + base.css
   assets/fonts/            自托管字体及许可证
   design-system.md         页面模式、控件选择、交互规则、文案、做减法、Token、检查清单
+  agent-ui.md              专项能力：流式渲染、rAF 批处理、思考折叠、工具与过程聚合折叠、子任务时间线、HITL 卡片
 scripts/verify.sh          按 SKILL.md 的命令生成项目，构建、测试并启动
 scripts/e2e/               浏览器端到端用例
 ```

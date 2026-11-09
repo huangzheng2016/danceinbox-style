@@ -21,7 +21,8 @@ cd frontend && pnpm check         # frontend gate
 - **Management page (list, create, edit, delete):** copy `frontend/src/pages/ExampleList.vue` and `ExampleFormDialog.vue`.
 - **Full detail page for one object:** copy `frontend/src/pages/ExampleDetail.vue` (route `meta.parent` gives the breadcrumb).
 - **Overview page with charts:** copy `frontend/src/pages/Home.vue`.
-- **Streamed output (agent runs, job logs):** backend `biz/service/run` (store events, then publish; plug a model into `run.Agent`) and a `/stream` IDL route; frontend `ExampleRuns.vue`.
+- **Streamed output (agent runs, job logs):** backend `biz/service/run` (store events, then publish; plug a model into `run.Agent`) and a `/stream` IDL route; frontend `ExampleRuns.vue`. For multi-turn Eino ADK agents, rolling session compaction, HITL checkpoints, subagents, or Docker/Kimi CLI (KAP) sandboxes (import `github.com/huangzheng2016/klient` directly instead of re-implementing KAP REST/WebSocket clients or event mappers), read `$SKILL/backend/agent.md`; for thinking fold, process group fold, subagent timelines, and streaming Markdown, read `$SKILL/frontend/agent-ui.md`.
+- **Desktop client (Wails v3):** dual-mode Web + Desktop IPC bridge, `WailsChannel` / `GoStream` streaming, `runtimeRequestGuard`, and window state persistence in `$SKILL/backend/wails3.md`.
 - **File uploads:** `biz/service/attachment` and `ExampleAttachments.vue`.
 - **Multi-step flow (import, setup):** copy `ExampleImport.vue` (`useWizard` + `Steps`).
 - **Settings an admin edits at runtime:** add a field to `biz/service/settings.Settings` (with a default, validation, and the service that reads it via `Current`), to `idl/api/settings.thrift`, `papi/convert.go`, `src/api/settings.ts`, `AUDIT_FIELDS.settings`, and a field on `Settings.vue`.

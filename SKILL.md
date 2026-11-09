@@ -1,6 +1,6 @@
 ---
 name: danceinbox-style
-description: "Use when creating a new Hertz (Go) + Vue 3 web app or admin console, or when adding features, endpoints, or pages to a project created from this skill (its CLAUDE.md names danceinbox-style). Ships a working scaffold: Thrift IDL + hz, gorm/gen, Wire, cookie JWT auth with roles, an embedded Vue 3 SPA with a no-library design system (shell, list/detail pages, dialogs, tables, toasts), tests, CI, and Docker/Caddy deploy."
+description: "Use when creating a new Hertz (Go) + Vue 3 web app, AI agent workbench, admin console, or Wails v3 desktop client, or when adding features, endpoints, agents, sandboxes, or pages to a project created from this skill (its CLAUDE.md names danceinbox-style). Ships a working scaffold: Thrift IDL + hz, gorm/gen, Wire, cookie JWT auth with roles, an embedded Vue 3 SPA with a no-library design system (shell, list/detail pages, dialogs, tables, toasts, streamed agent transcripts with thinking/tool folding), tests, CI, Docker/Caddy deploy, plus deep reference modules for Eino ADK agents, Kimi/container sandboxes, and Wails v3 desktop apps."
 ---
 
 # danceinbox-style
@@ -25,7 +25,10 @@ Prefer copying over composing from rules. When the skill and your instinct disag
 | `backend/workflow.md` | Layout, adding a feature, IDL and handler conventions, errors, auth, audit, runtime settings, testing, version pins |
 | `backend/data.md` | Query, write, transaction, delete, migration, and cache rules |
 | `backend/deploy.md` | Local run, versions, release, first deploy, lite profile, CI |
+| `backend/agent.md` | Optional capability: Eino ADK agent assembly, middleware stack (`patchtoolcalls`/`reduction`/`summarization`/`pairGuard`), rolling session compaction, HITL checkpoints, subagents, sequenced event/trace storage, and Docker/Kimi CLI sandboxes (`github.com/huangzheng2016/klient`) |
+| `backend/wails3.md` | Optional capability: Wails v3 desktop + Web dual-mode architecture, single `Service.Call` IPC dispatcher, `WailsChannel` + `GoStream` streaming, `runtimeRequestGuard` security, window state persistence, and pinned CLI binding checks |
 | `frontend/design-system.md` | Page patterns, which control to use, interaction rules, copy and its common mistakes, saying less, tokens, review checklist |
+| `frontend/agent-ui.md` | Optional capability: Agent stream rendering, rAF delta batching, streaming Markdown fence healing, thinking fold, tool card & process group fold (`思考 N 段 · 工具 M 次`), subagent timelines, and HITL confirmation cards |
 | `scripts/verify.sh`, `scripts/e2e/` | Maintainers only: builds a project from this file's commands and drives it in a browser; run after every change to the skill |
 
 ## New project
@@ -94,6 +97,8 @@ The project's `CLAUDE.md` holds the day-to-day rules. Deeper references:
 - New endpoint or feature: `backend/workflow.md` "Adding a feature".
 - Anything touching queries, writes, or the cache: `backend/data.md`.
 - New page: pick the reference page in `frontend/design-system.md` "Page patterns", copy it, then adapt. Before calling it done, run its "Review checklist"; the copy table in "Write for the person at the screen" lists the mistakes generated projects make most.
+- AI agents, tool execution, or sandboxes: read `backend/agent.md` for Eino ADK agent assembly, middleware stack (`patchtoolcalls`/`reduction`/`summarization`/`pairGuard`), rolling session compaction, HITL checkpoints, subagents, sequenced event/trace storage, and Docker or Kimi CLI/KAP sandboxes (import `github.com/huangzheng2016/klient` directly instead of re-implementing KAP REST/WebSocket clients or event mappers); read `frontend/agent-ui.md` for streaming Markdown fence healing, thinking fold, tool card & process group fold (`思考 N 段 · 工具 M 次`), subagent timelines, and HITL confirmation cards.
+- Desktop client (Wails v3): read `backend/wails3.md` for dual-mode Web + Desktop transport, single `Service.Call` IPC dispatcher, `WailsChannel` + `GoStream` streaming, `runtimeRequestGuard` security, window geometry persistence, and pinned CLI binding checks.
 - A shared component behaves wrong or is missing: fix or add it in `$SKILL/frontend/base/`, then re-copy `base/` into the project. Never fork a base component inside a project.
 
 ## Rules code cannot enforce

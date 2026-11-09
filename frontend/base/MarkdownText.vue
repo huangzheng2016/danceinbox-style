@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { onBeforeUnmount, ref, watch } from 'vue'
 import MarkdownIt from 'markdown-it'
+import { healStreamingMarkdown } from './agent'
 
 // Renders Markdown from models or users. Raw HTML in the source is shown as text,
 // links open in a new tab without access to this page, and wide tables scroll.
-// While streaming, re-rendering is coalesced to one per animation frame.
+// While streaming, re-rendering is coalesced to one per animation frame and
+// unclosed fenced code blocks are temporarily closed so they do not flicker.
 const props = withDefaults(defineProps<{ source: string; streaming?: boolean }>(), { streaming: false })
 
 const md = new MarkdownIt({ html: false, linkify: true, breaks: true })
@@ -21,23 +23,27 @@ md.renderer.rules.table_close = () => '</table></div>'
 const html = ref('')
 let frame = 0
 
+function render(src: string, streaming: boolean) {
+  return md.render(streaming ? healStreamingMarkdown(src) : src)
+}
+
 watch(
   () => props.source,
   (src) => {
     if (!props.streaming) {
       cancelAnimationFrame(frame)
-      html.value = md.render(src)
+      html.value = render(src, false)
       return
     }
     cancelAnimationFrame(frame)
-    frame = requestAnimationFrame(() => (html.value = md.render(src)))
+    frame = requestAnimationFrame(() => (html.value = render(src, true)))
   },
   { immediate: true },
 )
 watch(
   () => props.streaming,
   (s) => {
-    if (!s) html.value = md.render(props.source)
+    if (!s) html.value = render(props.source, false)
   },
 )
 onBeforeUnmount(() => cancelAnimationFrame(frame))
